@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">proof</string>
+    <string name="title_activity_main">proof</string>
+    <string name="package_name">com.proof.app</string>
+    <string name="custom_url_scheme">com.proof.app</string>
+</resources>
