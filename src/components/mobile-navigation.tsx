@@ -38,7 +38,7 @@ export default function BottomBar() {
     href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
 
   return (
-    <nav>
+    <nav className="fixed bottom-0 left-0 right-0 border-t bg-white">
       <div className="mx-auto max-w-6xl px-2 py-2 grid grid-cols-5">
         {tabs.map((t) => (
           <Link
