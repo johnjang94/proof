@@ -1,33 +1,39 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 
-import { IoHomeOutline } from "react-icons/io5";
+import { IoHomeOutline, IoHomeSharp, IoChatboxSharp } from "react-icons/io5";
 import { FiShoppingBag } from "react-icons/fi";
+import { RiShoppingBag3Fill } from "react-icons/ri";
 import { BsSuitcaseLg } from "react-icons/bs";
+import { FaSuitcase } from "react-icons/fa";
 import { CiChat1 } from "react-icons/ci";
 import { CgProfile } from "react-icons/cg";
 
 const tabs = [
-  { href: "/", label: "Home", icon: <IoHomeOutline className="text-3xl" /> },
+  { href: "/", label: "Home", off: IoHomeOutline, on: IoHomeSharp },
   {
     href: "/category/shopping",
     label: "Shopping",
-    icon: <FiShoppingBag className="text-3xl" />,
+    off: FiShoppingBag,
+    on: RiShoppingBag3Fill,
   },
   {
     href: "/category/jobs",
     label: "Jobs",
-    icon: <BsSuitcaseLg className="text-3xl" />,
+    off: BsSuitcaseLg,
+    on: FaSuitcase,
   },
   {
     href: "/category/chat",
     label: "Chat",
-    icon: <CiChat1 className="text-3xl" />,
+    off: CiChat1,
+    on: IoChatboxSharp,
   },
   {
     href: "/category/profile",
     label: "Profile",
-    icon: <CgProfile className="text-3xl" />,
+    off: CgProfile,
+    on: CgProfile,
   },
 ];
 
@@ -39,19 +45,24 @@ export default function BottomBar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 border-t bg-white">
-      <div className="mx-auto max-w-6xl px-2 py-2 grid grid-cols-5">
-        {tabs.map((t) => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={`flex h-14 w-full flex-col items-center justify-center rounded ${
-              isActive(t.href) ? "font-semibold opacity-100" : "opacity-70"
-            }`}
-          >
-            <span className="text-3xl leading-none">{t.icon}</span>
-            <span className="mt-1 text-[11px] leading-none">{t.label}</span>
-          </Link>
-        ))}
+      <div className="mx-auto grid max-w-6xl grid-cols-5 px-2 py-2">
+        {tabs.map(({ href, label, off, on }) => {
+          const active = isActive(href);
+          const Icon = active ? on : off;
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex h-14 flex-col items-center justify-center ${
+                active ? "text-black" : "text-gray-400"
+              }`}
+            >
+              <Icon className="text-3xl" />
+              <span className="mt-1 text-[11px]">{label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
