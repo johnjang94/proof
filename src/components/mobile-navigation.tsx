@@ -30,7 +30,7 @@ const tabs = [
     on: IoChatboxSharp,
   },
   {
-    href: "/category/profile",
+    href: "/category/login/profile-login",
     label: "Profile",
     off: CgProfile,
     on: CgProfile,
@@ -59,7 +59,7 @@ export default function BottomBar() {
               }`}
             >
               <Icon className="text-3xl" />
-              <span className="mt-1 text-[11px]">{label}</span>
+              <span className="mt-1 text-lg">{label}</span>
             </Link>
           );
         })}

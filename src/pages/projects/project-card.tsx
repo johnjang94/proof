@@ -42,7 +42,7 @@ const projects: Project[] = [
     hostedByValue: "Lumea Education",
     status: "Open",
     noteLabel: "Note",
-    noteValue: "This is an internal project for demo",
+    noteValue: "This is a demo project",
   },
   {
     id: "node-x",
@@ -56,7 +56,7 @@ const projects: Project[] = [
     hostedByValue: "Lumea Education",
     status: "Pending",
     noteLabel: "Note",
-    noteValue: "This is an internal project for demo",
+    noteValue: "This is a demo project",
   },
   {
     id: "opentab",
@@ -70,7 +70,7 @@ const projects: Project[] = [
     hostedByValue: "Lumea Education",
     status: "Closed",
     noteLabel: "Note",
-    noteValue: "This is an internal project for demo",
+    noteValue: "This is a demo project",
   },
   {
     id: "wayfair",
@@ -84,7 +84,7 @@ const projects: Project[] = [
     hostedByValue: "Lumea Education",
     status: "Pending",
     noteLabel: "Note",
-    noteValue: "This is an internal project for demo",
+    noteValue: "This is a demo project",
   },
   {
     id: "rooters",
@@ -98,7 +98,7 @@ const projects: Project[] = [
     hostedByValue: "Lumea Education",
     status: "Open",
     noteLabel: "Note",
-    noteValue: "This is an internal project for demo",
+    noteValue: "This is a demo project",
   },
   {
     id: "synclab",
@@ -112,7 +112,7 @@ const projects: Project[] = [
     hostedByValue: "Lumea Education",
     status: "Open",
     noteLabel: "Note",
-    noteValue: "This is an internal project for demo",
+    noteValue: "This is a demo project",
   },
 ];
 
@@ -122,7 +122,7 @@ function statusUI(status: ProjectStatus) {
       statusTextClass: "text-emerald-600",
       buttonText: "Apply to Join",
       buttonClass:
-        "border-emerald-400 text-emerald-700 hover:bg-emerald-50 focus:ring-emerald-200",
+        "border-emerald-400 text-emerald-700 hover:bg-[#00C48C] hover:text-white focus:ring-emerald-200",
     };
   }
   if (status === "Pending") {
