@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Role } from "../profile-login";
-import { useLoginForm } from "../hooks/useLoginForm";
 import { useRouter } from "next/router";
+import type { Role } from "@/pages/category/login";
 import { supabase } from "@/lib/supabaseClient";
+import useLoginForm from "@/hooks/useLoginForm";
 
 export default function DesktopLogin({
   role,
@@ -29,14 +29,8 @@ export default function DesktopLogin({
   const router = useRouter();
 
   const onSubmit = async (values: { email: string; password: string }) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    });
-
-    if (error) return;
-
-    router.replace("/");
+    const { error } = await supabase.auth.signInWithPassword(values);
+    if (!error) router.replace("/");
   };
 
   return (

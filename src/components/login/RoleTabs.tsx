@@ -1,10 +1,6 @@
-import { useState } from "react";
-import DesktopLogin from "./desktop/desktop-login";
-import MobileLogin from "./mobile/mobile-login";
+import type { Role } from "@/pages/category/login";
 
-export type Role = "participant" | "client";
-
-function RoleTabs({
+export default function RoleTabs({
   role,
   setRole,
   className = "",
@@ -34,21 +30,5 @@ function RoleTabs({
         Client
       </button>
     </div>
-  );
-}
-
-export default function Login() {
-  const [role, setRole] = useState<Role>("participant");
-
-  return (
-    <main>
-      <div className="hidden md:block">
-        <DesktopLogin role={role} setRole={setRole} RoleTabs={RoleTabs} />
-      </div>
-
-      <div className="md:hidden">
-        <MobileLogin role={role} setRole={setRole} RoleTabs={RoleTabs} />
-      </div>
-    </main>
   );
 }

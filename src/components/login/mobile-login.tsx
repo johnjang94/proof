@@ -1,9 +1,9 @@
-import type { Role } from "../profile-login";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useLoginForm } from "../hooks/useLoginForm";
+import type { Role } from "@/pages/category/login";
 import { supabase } from "@/lib/supabaseClient";
+import useLoginForm from "@/hooks/useLoginForm";
 
 export default function MobileLogin({
   role,
@@ -19,7 +19,6 @@ export default function MobileLogin({
   }>;
 }) {
   const router = useRouter();
-
   const {
     handleSubmit,
     errors,
@@ -30,14 +29,8 @@ export default function MobileLogin({
   } = useLoginForm();
 
   const onSubmit = async (values: { email: string; password: string }) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    });
-
-    if (error) return;
-
-    router.replace("/");
+    const { error } = await supabase.auth.signInWithPassword(values);
+    if (!error) router.replace("/");
   };
 
   return (

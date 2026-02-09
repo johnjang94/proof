@@ -12,7 +12,7 @@ export const isStrongPassword = (password: string) => {
   return hasLength && hasDigit && hasSpecial;
 };
 
-export function useLoginForm() {
+export default function useLoginForm() {
   const {
     control,
     register,
