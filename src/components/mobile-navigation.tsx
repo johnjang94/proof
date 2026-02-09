@@ -30,7 +30,7 @@ const tabs = [
     on: IoChatboxSharp,
   },
   {
-    href: "/category/login/profile-login",
+    href: "/category/login",
     label: "Profile",
     off: CgProfile,
     on: CgProfile,

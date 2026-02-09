@@ -83,7 +83,7 @@ export default function Top() {
         />
 
         <Link
-          href="/category/login/profile-login"
+          href="/category/login"
           className="hidden sm:block cursor-pointer p-2"
           aria-label="Profile"
         >
