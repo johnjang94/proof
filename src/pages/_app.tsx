@@ -15,7 +15,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       {!hideDesktopNav && (
-        <div className="hidden lg:block">
+        <div>
           <Navigation />
         </div>
       )}
