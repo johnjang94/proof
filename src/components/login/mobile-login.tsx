@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useState } from "react";
 import type { Role } from "@/pages/category/login";
 import { supabase } from "@/lib/supabaseClient";
 import useLoginForm from "@/hooks/useLoginForm";
@@ -19,6 +20,8 @@ export default function MobileLogin({
   }>;
 }) {
   const router = useRouter();
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const {
     handleSubmit,
     errors,
@@ -29,8 +32,16 @@ export default function MobileLogin({
   } = useLoginForm();
 
   const onSubmit = async (values: { email: string; password: string }) => {
+    setAuthError(null);
+
     const { error } = await supabase.auth.signInWithPassword(values);
-    if (!error) router.replace("/");
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+
+    router.replace("/");
   };
 
   return (
@@ -79,6 +90,12 @@ export default function MobileLogin({
             ) : null}
           </div>
 
+          {authError ? (
+            <p className="text-sm text-red-600">{authError}</p>
+          ) : (
+            <div />
+          )}
+
           <button
             type="submit"
             disabled={!canLogin}
@@ -98,6 +115,13 @@ export default function MobileLogin({
 
           <button
             type="button"
+            onClick={() =>
+              router.push(
+                role === "participant"
+                  ? "/category/sign-up/participant"
+                  : "/category/sign-up/client",
+              )
+            }
             className="w-full h-12 mt-20 rounded-lg bg-blue-600 text-xl text-white font-medium"
           >
             {role === "participant"

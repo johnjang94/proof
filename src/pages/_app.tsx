@@ -7,10 +7,13 @@ import MobileNav from "@/components/mobile-navigation";
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
+  const hideDesktopNav =
+    router.pathname === "/category/login" ||
+    router.pathname.startsWith("/category/sign-up");
 
-  const hideDesktopNav = router.pathname === "/category/login";
-
-  const hideMobileNav = router.pathname === "/category/login";
+  const hideMobileNav =
+    router.pathname === "/category/login" ||
+    router.pathname.startsWith("/category/sign-up");
 
   return (
     <>

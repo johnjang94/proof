@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useState } from "react";
 import type { Role } from "@/pages/category/login";
 import { supabase } from "@/lib/supabaseClient";
 import useLoginForm from "@/hooks/useLoginForm";
@@ -26,11 +27,21 @@ export default function DesktopLogin({
     emailRegister,
     passwordRegister,
   } = useLoginForm();
+
   const router = useRouter();
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const onSubmit = async (values: { email: string; password: string }) => {
+    setAuthError(null);
+
     const { error } = await supabase.auth.signInWithPassword(values);
-    if (!error) router.replace("/");
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+
+    router.replace("/");
   };
 
   return (
@@ -78,6 +89,12 @@ export default function DesktopLogin({
               <div className="mb-6" />
             )}
 
+            {authError ? (
+              <p className="mb-4 text-sm text-red-600">{authError}</p>
+            ) : (
+              <div className="mb-4" />
+            )}
+
             <button
               type="submit"
               disabled={!canLogin || isSubmitting}
@@ -95,12 +112,19 @@ export default function DesktopLogin({
               Forgot your password?
             </a>
 
-            <div className="mt-20 text-center">
-              <a className="text-sm text-blue-600" href="#">
+            <div className="mt-20">
+              <Link
+                href={
+                  role === "participant"
+                    ? "/category/sign-up/participant"
+                    : "/category/sign-up/client"
+                }
+                className="block w-full rounded-md py-3 text-center font-medium text-blue-600 transition-colors hover:text-blue-700"
+              >
                 {role === "participant"
                   ? "Become a participant"
                   : "Become a client"}
-              </a>
+              </Link>
             </div>
           </form>
         </div>
