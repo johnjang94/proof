@@ -41,7 +41,13 @@ export default function MobileLogin({
       return;
     }
 
-    router.replace("/");
+    const redirectToRaw = router.query.redirectTo;
+    const redirectTo =
+      typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
+        ? redirectToRaw
+        : "/";
+
+    router.replace(redirectTo);
   };
 
   return (

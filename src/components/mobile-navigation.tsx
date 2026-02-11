@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { IoHomeOutline, IoHomeSharp, IoChatboxSharp } from "react-icons/io5";
 import { FiShoppingBag } from "react-icons/fi";
@@ -30,49 +30,57 @@ const tabs: Tab[] = [
     off: FiShoppingBag,
     on: RiShoppingBag3Fill,
   },
-  {
-    href: "/category/jobs",
-    label: "Jobs",
-    off: BsSuitcaseLg,
-    on: FaSuitcase,
-  },
-  {
-    href: "/category/chat",
-    label: "Chat",
-    off: CiChat1,
-    on: IoChatboxSharp,
-  },
+  { href: "/category/jobs", label: "Jobs", off: BsSuitcaseLg, on: FaSuitcase },
+  { href: "/category/chat", label: "Chat", off: CiChat1, on: IoChatboxSharp },
 ];
 
 export default function BottomBar() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string>("");
 
   useEffect(() => {
-    const syncUser = (u: User | null) => {
+    const sync = (u: User | null) => {
       setUser(u);
 
+      if (!u) {
+        setAvatarUrl(null);
+        setDisplayName("");
+        return;
+      }
+
       const url =
-        (u?.user_metadata?.avatar_url as string | undefined) ??
-        (u?.user_metadata?.picture as string | undefined) ??
+        (u.user_metadata?.avatar_url as string | undefined) ??
+        (u.user_metadata?.picture as string | undefined) ??
         null;
 
+      const name =
+        (u.user_metadata?.full_name as string | undefined) ??
+        (u.user_metadata?.name as string | undefined) ??
+        (u.email ? u.email.split("@")[0] : "U");
+
       setAvatarUrl(url);
+      setDisplayName(name ?? "U");
     };
 
     supabase.auth.getUser().then(({ data }) => {
-      syncUser(data.user ?? null);
+      sync(data.user ?? null);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      syncUser(session?.user ?? null);
+      sync(session?.user ?? null);
     });
 
     return () => {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  const initial = useMemo(() => {
+    if (!displayName) return "U";
+    return displayName.trim().charAt(0).toUpperCase();
+  }, [displayName]);
 
   const isActive = (href: string) =>
     href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
@@ -107,13 +115,21 @@ export default function BottomBar() {
             profileActive ? "text-black" : "text-gray-400"
           }`}
         >
-          {user && avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt="avatar"
-              className="h-8 w-8 rounded-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+          {user ? (
+            avatarUrl ? (
+              <Image
+                src={avatarUrl}
+                alt="avatar"
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white text-sm font-medium">
+                {initial}
+              </div>
+            )
           ) : (
             <CgProfile className="text-3xl" />
           )}
