@@ -31,11 +31,11 @@ export default function Top() {
     <div className="relative flex items-center gap-1.5 p-8">
       <div ref={menuRef} className="relative">
         <button
+          type="button"
           className="hidden sm:block"
           aria-label="Open menu"
-          type="button"
-          onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
         >
           <RxHamburgerMenu className="text-3xl hover:cursor-pointer" />
         </button>
@@ -45,8 +45,8 @@ export default function Top() {
             "absolute left-0 top-12 z-50 w-96 overflow-hidden rounded-xl bg-white shadow-lg",
             "origin-top transition-all duration-200 ease-out",
             open
-              ? "scale-y-100 opacity-100 translate-y-0 pointer-events-auto"
-              : "scale-y-0 opacity-0 -translate-y-2 pointer-events-none",
+              ? "pointer-events-auto translate-y-0 scale-y-100 opacity-100"
+              : "pointer-events-none -translate-y-2 scale-y-0 opacity-0",
           ].join(" ")}
           role="menu"
           aria-hidden={!open}
@@ -54,34 +54,33 @@ export default function Top() {
           <Link
             href="/category/shopping"
             className="block px-4 py-3 text-sm hover:bg-slate-100"
-            onClick={() => setOpen(false)}
             role="menuitem"
+            onClick={() => setOpen(false)}
           >
             Shopping
           </Link>
           <Link
             href="/category/jobs"
             className="block px-4 py-3 text-sm hover:bg-slate-100"
-            onClick={() => setOpen(false)}
             role="menuitem"
+            onClick={() => setOpen(false)}
           >
             Jobs
           </Link>
         </div>
       </div>
 
-      <Link href="/" className="shrink-0 flex items-center">
+      <Link href="/" className="shrink-0">
         <Image src="/logo.png" alt="logo" width={64} height={64} priority />
       </Link>
 
-      <div className="flex items-center gap-1.5 flex-1">
+      <div className="flex flex-1 items-center gap-1.5">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search..."
-          className="w-full rounded-xl px-3 py-1.5 border border-slate-400"
+          className="w-full rounded-xl border border-slate-400 px-3 py-1.5"
         />
-
         <ProfileSlot />
       </div>
     </div>

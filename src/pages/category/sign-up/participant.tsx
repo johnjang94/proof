@@ -1,8 +1,8 @@
+import Image from "next/image";
 import { useRouter } from "next/router";
 import { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/lib/supabaseClient";
-import Image from "next/image";
 
 type FormValues = {
   firstName: string;
@@ -13,8 +13,22 @@ type FormValues = {
   avatar: FileList;
 };
 
+type ProfileBase = {
+  username: string;
+  first_name: string;
+  last_name: string;
+  role: "participant";
+  avatar_url: string | null;
+};
+
+type ProfileById = ProfileBase & { id: string };
+type ProfileByUserId = ProfileBase & { user_id: string };
+
+const PROFILE_ID_COL: "id" | "user_id" = "id";
+
 export default function Participant() {
   const router = useRouter();
+
   const [authError, setAuthError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
 
@@ -23,7 +37,6 @@ export default function Participant() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   const usernamePattern = useMemo(() => /^[A-Za-z]+$/, []);
 
   const {
@@ -47,6 +60,7 @@ export default function Participant() {
   const setAvatarFromFile = async (file: File) => {
     const dt = new DataTransfer();
     dt.items.add(file);
+
     setValue("avatar", dt.files, { shouldValidate: true, shouldDirty: true });
     await trigger("avatar");
 
@@ -61,8 +75,7 @@ export default function Participant() {
     setDragActive(false);
 
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
+    if (!file || !file.type.startsWith("image/")) return;
 
     await setAvatarFromFile(file);
   };
@@ -73,6 +86,35 @@ export default function Participant() {
     const file = e.target.files?.[0];
     if (!file) return;
     await setAvatarFromFile(file);
+  };
+
+  const uploadAvatar = async (userId: string, file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${userId}/avatar-${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true });
+
+    if (error) throw new Error(error.message);
+    return path;
+  };
+
+  const upsertProfile = async (userId: string, base: ProfileBase) => {
+    if (PROFILE_ID_COL === "id") {
+      const payload: ProfileById = { id: userId, ...base };
+      const { error } = await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "id" });
+      if (error) throw new Error(error.message);
+      return;
+    }
+
+    const payload: ProfileByUserId = { user_id: userId, ...base };
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "user_id" });
+    if (error) throw new Error(error.message);
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -105,18 +147,41 @@ export default function Participant() {
 
     if (!signUpData.session) {
       router.replace(
-        `/category/auth/check-email?email=${encodeURIComponent(email)}`,
+        // `/category/auth/check-email?email=${encodeURIComponent(email)}`,
+        `/category/welcome/introduction`,
       );
       return;
     }
 
-    router.replace("/category/welcome/introduction");
+    const u = signUpData.user;
+    if (!u) {
+      setAuthError("Sign up succeeded but user was not returned.");
+      return;
+    }
+
+    const file = values.avatar?.item?.(0) ?? null;
+
+    try {
+      const avatarPath = file ? await uploadAvatar(u.id, file) : null;
+
+      await upsertProfile(u.id, {
+        username,
+        first_name: firstName,
+        last_name: lastName,
+        role: "participant",
+        avatar_url: avatarPath,
+      });
+
+      router.replace("/category/welcome/introduction");
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : "Something went wrong");
+    }
   };
 
   return (
     <main>
       <section className="mx-auto w-full max-w-xl px-6 py-8">
-        <h1 className="text-4xl font-semibold text-center">
+        <h1 className="text-center text-4xl font-semibold">
           Ready to Join us?
         </h1>
 
@@ -188,11 +253,13 @@ export default function Participant() {
                   if (!usernamePattern.test(v)) return true;
 
                   setCheckingUsername(true);
+
                   const { data, error } = await supabase
                     .from("profiles")
-                    .select("id")
+                    .select(PROFILE_ID_COL)
                     .eq("username", v)
                     .limit(1);
+
                   setCheckingUsername(false);
 
                   if (error) return "Could not verify username";
@@ -202,6 +269,7 @@ export default function Participant() {
                 },
               })}
             />
+
             {checkingUsername ? (
               <p className="mt-2 text-sm text-zinc-500">Checking username...</p>
             ) : errors.username?.message ? (
@@ -352,8 +420,9 @@ export default function Participant() {
                       src={avatarPreview}
                       alt="Selected avatar preview"
                       className="h-12 w-12 rounded-full object-cover"
-                      width={100}
-                      height={100}
+                      width={48}
+                      height={48}
+                      style={{ width: "auto", height: "auto" }}
                     />
                   ) : null}
                   <div className="text-sm text-zinc-700">{avatarName}</div>
@@ -374,11 +443,11 @@ export default function Participant() {
             <div />
           )}
 
-          <div className="pt-10 flex justify-end">
+          <div className="flex justify-end pt-10">
             <button
               type="submit"
               disabled={!isValid || isSubmitting || checkingUsername}
-              className="rounded-md bg-black px-6 py-3 text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="rounded-md bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:opacity-30"
             >
               {isSubmitting ? "Loading..." : "Continue"}
             </button>
