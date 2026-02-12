@@ -75,6 +75,15 @@ export default function BottomBar() {
                 height={32}
                 className="h-8 w-8 rounded-full object-cover"
                 referrerPolicy="no-referrer"
+                unoptimized
+                onError={() => {
+                  const el = document.getElementById("avatar-debug");
+                  if (el) el.textContent = `IMG ERROR: ${avatarUrl}`;
+                }}
+                onLoad={() => {
+                  const el = document.getElementById("avatar-debug");
+                  if (el) el.textContent = `IMG OK: ${avatarUrl}`;
+                }}
               />
             ) : (
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white text-sm font-medium">
@@ -85,7 +94,17 @@ export default function BottomBar() {
             <CgProfile className="text-3xl" />
           )}
 
-          <span className="mt-1 text-lg">Profile</span>
+          <span className="mt-1 text-lg">
+            {user ? "My Profile" : "Profile"}
+          </span>
+
+          {user && (
+            <div className="mt-1 max-w-30 truncate text-[10px] text-gray-500">
+              <div>avatarUrl:</div>
+              <div className="truncate">{avatarUrl || "(empty)"}</div>
+              <div id="avatar-debug" className="truncate"></div>
+            </div>
+          )}
         </Link>
       </div>
     </nav>

@@ -27,51 +27,67 @@ export default function ProfileSlot() {
   useEffect(() => {
     let mounted = true;
 
-    const load = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!mounted) return;
+    const load = async (reason: string) => {
+      console.groupCollapsed(`[ProfileSlot] load (${reason})`);
 
-      const u = userData.user ?? null;
-      setUser(u);
+      try {
+        const { data: userData } = await supabase.auth.getUser();
 
-      if (!u) {
-        setProfile(null);
-        return;
+        if (!mounted) {
+          console.groupEnd();
+          return;
+        }
+
+        const u = userData?.user ?? null;
+        setUser(u);
+
+        if (!u) {
+          setProfile(null);
+          console.groupEnd();
+          return;
+        }
+
+        const { data: p, error: profileErr } = await supabase
+          .from("profiles")
+          .select("username, first_name, last_name, role, points, avatar_url")
+          .eq("id", u.id)
+          .single<ProfileRow>();
+
+        if (!mounted) {
+          console.groupEnd();
+          return;
+        }
+
+        if (profileErr || !p) {
+          const fallbackName = u.email ? u.email.split("@")[0] : "User";
+
+          setProfile({ name: fallbackName, avatarUrl: null, points: 0 });
+          console.groupEnd();
+          return;
+        }
+
+        const first = (p.first_name ?? "").trim();
+        const last = (p.last_name ?? "").trim();
+        const fullName = [first, last].filter(Boolean).join(" ").trim();
+        const name = fullName || "User";
+
+        setProfile({
+          name,
+          avatarUrl: (p.avatar_url as string | null) ?? null,
+          points: (p.points as number | null) ?? 0,
+        });
+
+        console.groupEnd();
+      } catch (e) {
+        console.error("[ProfileSlot] unexpected error:", e);
+        console.groupEnd();
       }
-
-      const { data: p, error } = await supabase
-        .from("profiles")
-        .select("username, first_name, last_name, role, points, avatar_url")
-        .eq("id", u.id)
-        .single<ProfileRow>();
-
-      if (!mounted) return;
-
-      if (error || !p) {
-        const fallbackName = u.email ? u.email.split("@")[0] : "User";
-        setProfile({ name: fallbackName, avatarUrl: null, points: 0 });
-        return;
-      }
-
-      const first = (p.first_name ?? "").trim();
-      const last = (p.last_name ?? "").trim();
-      const fullName = [first, last].filter(Boolean).join(" ").trim();
-      const name =
-        fullName ||
-        (p.username ?? "").trim() ||
-        (u.email ? u.email.split("@")[0] : "User");
-
-      setProfile({
-        name,
-        avatarUrl: (p.avatar_url as string | null) ?? null,
-        points: (p.points as number | null) ?? 0,
-      });
     };
 
-    load();
+    load("mount");
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      load();
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      load(`auth:${event}`);
     });
 
     return () => {
@@ -81,7 +97,6 @@ export default function ProfileSlot() {
   }, []);
 
   const href = user ? "/category/profile" : "/category/login";
-
   const label = useMemo(() => (user ? "Profile" : "Login"), [user]);
 
   if (!user || !profile) {
@@ -116,6 +131,7 @@ export default function ProfileSlot() {
 
       <div className="flex flex-col leading-tight">
         <span className="text-sm font-medium">{profile.name}</span>
+        <span className="text-[10px] text-red-500">DEBUG: {profile.name}</span>
         <span className="text-xs text-slate-500">
           {profile.points.toLocaleString()} pts
         </span>

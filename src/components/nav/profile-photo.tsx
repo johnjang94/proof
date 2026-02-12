@@ -1,90 +1,68 @@
-import { useEffect, useMemo, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const PROFILE_ID_COL: "id" | "user_id" = "id";
+type ProfileRow = {
+  id: string;
+  avatar_path: string | null;
+  avatar_url: string | null;
+};
 
-type ProfileRow = { avatar_url: string | null };
+const BUCKET = "avatars";
+
+function toPublicAvatarUrl(raw: string) {
+  const v = raw.trim();
+  if (!v) return "";
+
+  if (v.startsWith("http://") || v.startsWith("https://")) return v;
+
+  let path = v;
+  if (path.startsWith("/")) path = path.slice(1);
+  if (path.startsWith(`${BUCKET}/`)) path = path.slice(BUCKET.length + 1);
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return data?.publicUrl ?? "";
+}
 
 export function useProfileBadge() {
-  const [user, setUser] = useState<User | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string>("");
-
-  const initial = useMemo(() => {
-    const s = displayName.trim();
-    return s ? s.charAt(0).toUpperCase() : "U";
-  }, [displayName]);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [initial, setInitial] = useState("U");
 
   useEffect(() => {
-    let mounted = true;
-
-    const getDisplayName = (u: User) => {
-      const meta = u.user_metadata ?? {};
-      return (
-        (meta.full_name as string | undefined) ??
-        (meta.name as string | undefined) ??
-        (u.email ? u.email.split("@")[0] : "U") ??
-        "U"
-      );
-    };
-
-    const resolveAvatarUrl = async (u: User) => {
-      const { data: p, error } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq(PROFILE_ID_COL, u.id)
-        .maybeSingle<ProfileRow>();
-
-      if (!mounted) return;
-
-      if (error) {
-        console.log("[profiles] avatar_url fetch error:", error);
-        setAvatarUrl(null);
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (error || !data.user) {
+        setUser(null);
+        setAvatarUrl("");
+        setInitial("U");
         return;
       }
-
-      const stored = p?.avatar_url ?? null;
-      if (!stored) {
-        setAvatarUrl(null);
-        return;
-      }
-
-      if (stored.startsWith("http")) {
-        setAvatarUrl(stored);
-        return;
-      }
-
-      const { data } = supabase.storage.from("avatars").getPublicUrl(stored);
-      setAvatarUrl(data.publicUrl ?? null);
-    };
-
-    const sync = async (u: User | null) => {
-      if (!mounted) return;
-
-      setUser(u);
-
-      if (!u) {
-        setAvatarUrl(null);
-        setDisplayName("");
-        return;
-      }
-
-      setDisplayName(getDisplayName(u));
-      await resolveAvatarUrl(u);
-    };
-
-    supabase.auth.getUser().then(({ data }) => sync(data.user ?? null));
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      sync(session?.user ?? null);
+      const u = data.user;
+      setUser({ id: u.id, email: u.email ?? undefined });
+      setInitial((u.email?.[0] ?? "U").toUpperCase());
     });
-
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
   }, []);
 
-  return { user, avatarUrl, displayName, initial };
+  useEffect(() => {
+    if (!user) return;
+
+    const run = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, avatar_path, avatar_url")
+        .eq("id", user.id)
+        .single<ProfileRow>();
+
+      const raw =
+        (profile?.avatar_path ?? "").trim() ||
+        (profile?.avatar_url ?? "").trim();
+
+      const finalUrl = raw ? toPublicAvatarUrl(raw) : "";
+
+      setAvatarUrl(finalUrl);
+    };
+
+    run();
+  }, [user]);
+
+  return { user, avatarUrl, initial };
 }
