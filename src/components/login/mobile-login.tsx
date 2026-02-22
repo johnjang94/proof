@@ -2,23 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
-import type { Role } from "@/pages/category/login";
 import { supabase } from "@/lib/supabaseClient";
 import useLoginForm from "@/hooks/useLoginForm";
 
-export default function MobileLogin({
-  role,
-  setRole,
-  RoleTabs,
-}: {
-  role: Role;
-  setRole: (role: Role) => void;
-  RoleTabs: React.ComponentType<{
-    role: Role;
-    setRole: (role: Role) => void;
-    className?: string;
-  }>;
-}) {
+export default function MobileLogin() {
   const router = useRouter();
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -64,8 +51,6 @@ export default function MobileLogin({
       </div>
 
       <section className="flex-1 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-2 pt-4">
-        <RoleTabs role={role} setRole={setRole} />
-
         <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-5">
           <div>
             <label className="block text-xl font-medium mb-2">
@@ -121,18 +106,10 @@ export default function MobileLogin({
 
           <button
             type="button"
-            onClick={() =>
-              router.push(
-                role === "participant"
-                  ? "/category/sign-up/participant"
-                  : "/category/sign-up/client",
-              )
-            }
+            onClick={() => router.push("/sign-up/participant")}
             className="w-full h-12 mt-20 rounded-lg bg-blue-600 text-xl text-white font-medium"
           >
-            {role === "participant"
-              ? "Become a participant"
-              : "Become a client"}
+            Become a participant
           </button>
         </form>
       </section>

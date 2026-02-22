@@ -16,7 +16,7 @@ export default function Login() {
       </div>
 
       <div className="md:hidden">
-        <MobileLogin role={role} setRole={setRole} RoleTabs={RoleTabs} />
+        <MobileLogin />
       </div>
     </main>
   );

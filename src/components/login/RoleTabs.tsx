@@ -1,4 +1,4 @@
-import type { Role } from "@/pages/category/login";
+import type { Role } from "@/pages/login";
 
 export default function RoleTabs({
   role,

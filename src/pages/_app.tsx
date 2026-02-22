@@ -32,8 +32,8 @@ function AuthHeader() {
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
-  const isSignUpRoute = router.pathname.startsWith("/category/sign-up");
-  const isLoginRoute = router.pathname === "/category/login";
+  const isSignUpRoute = router.pathname.startsWith("/sign-up");
+  const isLoginRoute = router.pathname === "/login";
 
   const hideDesktopNav = isLoginRoute || isSignUpRoute;
   const hideMobileNav = isLoginRoute || isSignUpRoute;

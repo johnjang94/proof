@@ -148,7 +148,7 @@ export default function Participant() {
     if (!signUpData.session) {
       router.replace(
         // `/category/auth/check-email?email=${encodeURIComponent(email)}`,
-        `/category/welcome/introduction`,
+        `/welcome/introduction`,
       );
       return;
     }
@@ -172,7 +172,7 @@ export default function Participant() {
         avatar_url: avatarPath,
       });
 
-      router.replace("/category/welcome/introduction");
+      router.replace("/welcome/introduction");
     } catch (e) {
       setAuthError(e instanceof Error ? e.message : "Something went wrong");
     }

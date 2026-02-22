@@ -33,9 +33,8 @@ export default function BottomBar() {
   const isActive = (href: string) =>
     href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
 
-  const profileHref = user ? "/category/profile" : "/category/login";
-  const profileActive =
-    isActive("/category/profile") || isActive("/category/login");
+  const profileHref = user ? "/category/profile" : "/login";
+  const profileActive = isActive("/category/profile") || isActive("/login");
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 border-t bg-white">
