@@ -96,7 +96,7 @@ export default function ProfileSlot() {
     };
   }, []);
 
-  const href = user ? "/category/profile" : "/category/login";
+  const href = user ? "/category/profile" : "/login";
   const label = useMemo(() => (user ? "Profile" : "Login"), [user]);
 
   if (!user || !profile) {

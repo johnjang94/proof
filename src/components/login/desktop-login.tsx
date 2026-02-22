@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
-import type { Role } from "@/pages/category/login";
+import type { Role } from "@/pages/login";
 import { supabase } from "@/lib/supabaseClient";
 import useLoginForm from "@/hooks/useLoginForm";
 
@@ -122,8 +122,8 @@ export default function DesktopLogin({
               <Link
                 href={
                   role === "participant"
-                    ? "/category/sign-up/participant"
-                    : "/category/sign-up/client"
+                    ? "/sign-up/participant"
+                    : "/sign-up/client"
                 }
                 className="block w-full rounded-md py-3 text-center font-medium text-blue-600 transition-colors hover:text-blue-700"
               >

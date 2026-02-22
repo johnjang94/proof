@@ -12,7 +12,7 @@ export default function Profile() {
     if (loggingOut) return;
     setLoggingOut(true);
     await supabase.auth.signOut();
-    router.replace("/category/login");
+    router.replace("/login");
   };
 
   return (

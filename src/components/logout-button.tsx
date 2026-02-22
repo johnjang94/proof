@@ -13,7 +13,7 @@ export default function LogoutButton({ className }: { className?: string }) {
     await supabase.auth.signOut();
 
     setLoading(false);
-    router.replace("/category/login");
+    router.replace("/login");
   };
 
   return (
