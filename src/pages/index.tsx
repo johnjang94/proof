@@ -1,5 +1,5 @@
-import GuestHome from "./projects/project-card";
+import Home from "./main/participant/landing";
 
-export default function Home() {
-  return <GuestHome />;
+export default function Index() {
+  return <Home />;
 }

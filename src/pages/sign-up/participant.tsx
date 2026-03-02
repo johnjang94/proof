@@ -1,16 +1,16 @@
-import Image from "next/image";
-import { useRouter } from "next/router";
 import { useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/router";
+import { useForm, useWatch } from "react-hook-form";
+import { supabase } from "@/lib/supabaseInstance";
 
 type FormValues = {
-  firstName: string;
-  lastName: string;
   username: string;
   email: string;
   password: string;
-  avatar: FileList;
+  retypePassword: string;
+  firstName: string;
+  lastName: string;
+  avatar: FileList | null;
 };
 
 type ProfileBase = {
@@ -21,10 +21,10 @@ type ProfileBase = {
   avatar_url: string | null;
 };
 
-type ProfileById = ProfileBase & { id: string };
-type ProfileByUserId = ProfileBase & { user_id: string };
-
 const PROFILE_ID_COL: "id" | "user_id" = "id";
+
+type ProfileById = { id: string } & ProfileBase;
+type ProfileByUserId = { user_id: string } & ProfileBase;
 
 export default function Participant() {
   const router = useRouter();
@@ -44,8 +44,17 @@ export default function Participant() {
     handleSubmit,
     setValue,
     trigger,
+    control,
     formState: { errors, isValid, isSubmitting },
-  } = useForm<FormValues>({ mode: "onChange" });
+  } = useForm<FormValues>({
+    mode: "onChange",
+    defaultValues: { avatar: null },
+  });
+
+  const passwordValue = useWatch({
+    control,
+    name: "password",
+  });
 
   const avatarRegister = register("avatar", {
     validate: (files) => {
@@ -83,21 +92,45 @@ export default function Participant() {
   const onBrowsePick: React.ChangeEventHandler<HTMLInputElement> = async (
     e,
   ) => {
+    avatarRegister.onChange(e);
+
     const file = e.target.files?.[0];
     if (!file) return;
+
     await setAvatarFromFile(file);
   };
 
   const uploadAvatar = async (userId: string, file: File) => {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const path = `${userId}/avatar-${crypto.randomUUID()}.${ext}`;
+    const r = await fetch("/api/r2/avatar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileType: file.type, userId }),
+    });
 
-    const { error } = await supabase.storage
-      .from("avatars")
-      .upload(path, file, { upsert: true });
+    if (!r.ok) {
+      const msg = await r.text().catch(() => "");
+      throw new Error(`Failed to create upload URL. ${msg}`);
+    }
 
-    if (error) throw new Error(error.message);
-    return path;
+    const { uploadUrl, key } = (await r.json()) as {
+      uploadUrl: string;
+      key: string;
+    };
+
+    const put = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
+    });
+
+    if (!put.ok) throw new Error("Avatar upload failed");
+
+    const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
+    if (!base) throw new Error("Missing NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
+
+    return `${base}/${key}`;
   };
 
   const upsertProfile = async (userId: string, base: ProfileBase) => {
@@ -125,6 +158,9 @@ export default function Participant() {
     const firstName = values.firstName.trim();
     const lastName = values.lastName.trim();
 
+    setCheckingUsername(true);
+    setCheckingUsername(false);
+
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
       {
         email,
@@ -146,10 +182,7 @@ export default function Participant() {
     }
 
     if (!signUpData.session) {
-      router.replace(
-        // `/category/auth/check-email?email=${encodeURIComponent(email)}`,
-        `/welcome/introduction`,
-      );
+      router.replace("/welcome/introduction");
       return;
     }
 
@@ -162,14 +195,14 @@ export default function Participant() {
     const file = values.avatar?.item?.(0) ?? null;
 
     try {
-      const avatarPath = file ? await uploadAvatar(u.id, file) : null;
+      const avatarUrl = file ? await uploadAvatar(u.id, file) : null;
 
       await upsertProfile(u.id, {
         username,
         first_name: firstName,
         last_name: lastName,
         role: "participant",
-        avatar_url: avatarPath,
+        avatar_url: avatarUrl,
       });
 
       router.replace("/welcome/introduction");
@@ -179,281 +212,207 @@ export default function Participant() {
   };
 
   return (
-    <main>
-      <section className="mx-auto w-full max-w-xl px-6 py-8">
-        <h1 className="text-center text-4xl font-semibold">
-          Ready to Join us?
-        </h1>
+    <main className="mx-auto max-w-xl px-6 py-10">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">First name</label>
+            <input
+              className="w-full rounded-lg border px-3 py-2"
+              autoComplete="given-name"
+              {...register("firstName", { required: "First name is required" })}
+            />
+            {errors.firstName?.message ? (
+              <p className="text-sm text-red-600">{errors.firstName.message}</p>
+            ) : null}
+          </div>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="mt-12 space-y-6"
-          noValidate
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-2 block text-sm">First name</label>
-              <input
-                className="w-full rounded-md border border-zinc-400 px-4 py-3 outline-none focus:border-black"
-                placeholder="Ian"
-                {...register("firstName", {
-                  required: "First name is required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                  pattern: {
-                    value: /^[A-Za-z]+$/,
-                    message: "Only letters allowed",
-                  },
-                })}
-              />
-              {errors.firstName?.message && (
-                <p className="mt-2 text-sm text-red-600">
-                  {errors.firstName.message}
-                </p>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Last name</label>
+            <input
+              className="w-full rounded-lg border px-3 py-2"
+              autoComplete="family-name"
+              {...register("lastName", { required: "Last name is required" })}
+            />
+            {errors.lastName?.message ? (
+              <p className="text-sm text-red-600">{errors.lastName.message}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Username</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2"
+            autoComplete="username"
+            {...register("username", {
+              required: "Username is required",
+              minLength: { value: 2, message: "Too short" },
+              maxLength: { value: 20, message: "Too long" },
+              validate: (v) =>
+                usernamePattern.test(v.trim()) || "Letters only (A–Z)",
+            })}
+          />
+          {errors.username?.message ? (
+            <p className="text-sm text-red-600">{errors.username.message}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Email</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2"
+            type="email"
+            autoComplete="email"
+            {...register("email", { required: "Email is required" })}
+          />
+          {errors.email?.message ? (
+            <p className="text-sm text-red-600">{errors.email.message}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Password</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2"
+            type="password"
+            autoComplete="new-password"
+            {...register("password", {
+              required: "Password is required",
+              minLength: { value: 8, message: "Min 8 chars" },
+              onChange: async () => {
+                await trigger("retypePassword");
+              },
+            })}
+          />
+          {errors.password?.message ? (
+            <p className="text-sm text-red-600">{errors.password.message}</p>
+          ) : null}
+        </div>
+
+        {/* ✅ Retype Password (added right after Password) */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Retype password</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2"
+            type="password"
+            autoComplete="new-password"
+            {...register("retypePassword", {
+              required: "Please retype your password",
+              validate: (v) => v === passwordValue || "Passwords do not match",
+            })}
+          />
+          {errors.retypePassword?.message ? (
+            <p className="text-sm text-red-600">
+              {errors.retypePassword.message}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Profile photo</label>
+
+          <div
+            className={[
+              "rounded-xl border p-4 transition",
+              dragActive ? "border-black" : "border-dashed",
+            ].join(" ")}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragActive(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragActive(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragActive(false);
+            }}
+            onDrop={onDrop}
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ")
+                fileInputRef.current?.click();
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-12.5 w-12.5 overflow-hidden rounded-full border">
+                {avatarPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarPreview}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gray-100" />
+                )}
+              </div>
+
+              {avatarName ? (
+                <p className="text-sm font-medium truncate">{avatarName}</p>
+              ) : (
+                <>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      Drop an image or click to browse
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      PNG, JPG, WEBP up to 5MB
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="rounded-lg border px-3 py-2 text-sm hover:cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    Browse
+                  </button>
+                </>
               )}
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm">Last name</label>
-              <input
-                className="w-full rounded-md border border-zinc-400 px-4 py-3 outline-none focus:border-black"
-                placeholder="Cooper"
-                {...register("lastName", {
-                  required: "Last name is required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                  pattern: {
-                    value: /^[A-Za-z]+$/,
-                    message: "Only letters allowed",
-                  },
-                })}
-              />
-              {errors.lastName?.message && (
-                <p className="mt-2 text-sm text-red-600">
-                  {errors.lastName.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm">Username</label>
             <input
-              className="w-full rounded-md border border-zinc-400 px-4 py-3 outline-none focus:border-black"
-              placeholder="i.e. thehandsomeketchup"
-              autoComplete="username"
-              {...register("username", {
-                required: "Username is required",
-                minLength: { value: 2, message: "At least 2 characters" },
-                pattern: {
-                  value: usernamePattern,
-                  message: "Only letters allowed",
-                },
-                validate: async (value) => {
-                  const v = value.trim().toLowerCase();
-                  if (v.length < 2) return true;
-                  if (!usernamePattern.test(v)) return true;
-
-                  setCheckingUsername(true);
-
-                  const { data, error } = await supabase
-                    .from("profiles")
-                    .select(PROFILE_ID_COL)
-                    .eq("username", v)
-                    .limit(1);
-
-                  setCheckingUsername(false);
-
-                  if (error) return "Could not verify username";
-                  if (data && data.length > 0)
-                    return "Username is already taken";
-                  return true;
-                },
-              })}
-            />
-
-            {checkingUsername ? (
-              <p className="mt-2 text-sm text-zinc-500">Checking username...</p>
-            ) : errors.username?.message ? (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.username.message}
-              </p>
-            ) : (
-              <div />
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm">Email</label>
-            <input
-              className="w-full rounded-md border border-zinc-400 px-4 py-3 outline-none focus:border-black"
-              placeholder="i.e. ianc@gmail.com"
-              inputMode="email"
-              autoComplete="email"
-              {...register("email", {
-                required: "Email is required",
-                pattern: {
-                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                  message: "Enter a valid email",
-                },
-              })}
-            />
-            {errors.email?.message && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm">Password</label>
-            <input
-              type="password"
-              placeholder="******"
-              className="w-full rounded-md border border-zinc-400 px-4 py-3 outline-none focus:border-black"
-              autoComplete="new-password"
-              {...register("password", {
-                required: "Password is required",
-                minLength: { value: 6, message: "At least 6 characters" },
-              })}
-            />
-            {errors.password?.message && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm">Profile photo</label>
-
-            <input
+              {...avatarRegister}
               ref={(el) => {
                 avatarRegister.ref(el);
                 fileInputRef.current = el;
               }}
-              name={avatarRegister.name}
-              onBlur={avatarRegister.onBlur}
-              onChange={(e) => {
-                avatarRegister.onChange(e);
-                onBrowsePick(e);
-              }}
+              className="hidden"
               type="file"
               accept="image/*"
-              className="hidden"
+              onChange={onBrowsePick}
             />
-
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => fileInputRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ")
-                  fileInputRef.current?.click();
-              }}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDragActive(true);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDragActive(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDragActive(false);
-              }}
-              onDrop={onDrop}
-              className={[
-                "w-full rounded-2xl border p-10 text-center transition-colors",
-                dragActive
-                  ? "border-black bg-zinc-50"
-                  : "border-zinc-300 bg-white",
-                "cursor-pointer select-none",
-              ].join(" ")}
-            >
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200">
-                <svg
-                  width="26"
-                  height="26"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 16V4"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M7 8L12 3L17 8"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M4 20H20"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-
-              <div className="text-xl font-medium">
-                Drag & Drop your photo here
-              </div>
-              <div className="mt-2 text-sm text-zinc-600">
-                or click here to browse
-              </div>
-              <div className="mt-2 text-sm text-zinc-500">
-                supported file types: JPG, PNG, WEBP
-              </div>
-
-              {avatarName && (
-                <div className="mt-6 flex items-center justify-center gap-4">
-                  {avatarPreview ? (
-                    <Image
-                      src={avatarPreview}
-                      alt="Selected avatar preview"
-                      className="h-12 w-12 rounded-full object-cover"
-                      width={48}
-                      height={48}
-                      style={{ width: "auto", height: "auto" }}
-                    />
-                  ) : null}
-                  <div className="text-sm text-zinc-700">{avatarName}</div>
-                </div>
-              )}
-            </div>
-
-            {errors.avatar?.message && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.avatar.message as string}
-              </p>
-            )}
           </div>
 
-          {authError ? (
-            <p className="text-sm text-red-600">{authError}</p>
-          ) : (
-            <div />
-          )}
+          {errors.avatar?.message ? (
+            <p className="text-sm text-red-600">
+              {String(errors.avatar.message)}
+            </p>
+          ) : null}
+        </div>
 
-          <div className="flex justify-end pt-10">
-            <button
-              type="submit"
-              disabled={!isValid || isSubmitting || checkingUsername}
-              className="rounded-md bg-black px-6 py-3 text-white disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              {isSubmitting ? "Loading..." : "Continue"}
-            </button>
-          </div>
-        </form>
-      </section>
+        {authError ? <p className="text-sm text-red-600">{authError}</p> : null}
+
+        <button
+          type="submit"
+          disabled={!isValid || isSubmitting || checkingUsername}
+          className="w-full rounded-xl bg-black px-4 py-3 text-white disabled:opacity-50 hover:cursor-pointer"
+        >
+          {isSubmitting ? "Creating account..." : "Create account"}
+        </button>
+      </form>
     </main>
   );
 }

@@ -2,10 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseInstance";
 import useLoginForm from "@/hooks/useLoginForm";
 
-export default function MobileLogin() {
+export default function MobileLogin({
+  onLoginSuccess,
+}: {
+  onLoginSuccess?: () => void | Promise<void>;
+}) {
   const router = useRouter();
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -32,9 +36,19 @@ export default function MobileLogin() {
     const redirectTo =
       typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
         ? redirectToRaw
-        : "/";
+        : null;
 
-    router.replace(redirectTo);
+    if (redirectTo) {
+      router.replace(redirectTo);
+      return;
+    }
+
+    if (onLoginSuccess) {
+      await onLoginSuccess();
+      return;
+    }
+
+    router.replace("/");
   };
 
   return (

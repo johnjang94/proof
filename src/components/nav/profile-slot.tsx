@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CgProfile } from "react-icons/cg";
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseInstance";
 
 type ProfileRow = {
   username: string | null;
@@ -129,9 +129,9 @@ export default function ProfileSlot() {
         ) : null}
       </div>
 
-      <div className="flex flex-col leading-tight">
-        <span className="text-sm font-medium">{profile.name}</span>
-        <span className="text-[10px] text-red-500">DEBUG: {profile.name}</span>
+      <div className="leading-tight w-full">
+        <span className="font-medium">{profile.name}</span>
+        <br />
         <span className="text-xs text-slate-500">
           {profile.points.toLocaleString()} pts
         </span>

@@ -1,22 +1,56 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
 
 import RoleTabs from "@/components/login/RoleTabs";
 import DesktopLogin from "@/components/login/desktop-login";
 import MobileLogin from "@/components/login/mobile-login";
+import { getMyRole, type Role as DbRole } from "@/lib/auth/getMyRole";
 
 export type Role = "participant" | "client";
 
 export default function Login() {
+  const router = useRouter();
   const [role, setRole] = useState<Role>("participant");
+
+  const roleHome = useMemo<Record<DbRole, string>>(
+    () => ({
+      participant: "/main/participant/landing",
+      client: "/main/client/landing",
+      hr: "/hr",
+      admin: "/admin",
+    }),
+    [],
+  );
+
+  const redirectByRole = async () => {
+    const dbRole = await getMyRole();
+    if (!dbRole) return;
+    router.replace(roleHome[dbRole]);
+  };
+
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const from = router.query.from;
+    if (from === "signup") return;
+
+    redirectByRole();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady]);
 
   return (
     <main>
       <div className="hidden md:block">
-        <DesktopLogin role={role} setRole={setRole} RoleTabs={RoleTabs} />
+        <DesktopLogin
+          role={role}
+          setRole={setRole}
+          RoleTabs={RoleTabs}
+          onLoginSuccess={redirectByRole}
+        />
       </div>
 
       <div className="md:hidden">
-        <MobileLogin />
+        <MobileLogin onLoginSuccess={redirectByRole} />
       </div>
     </main>
   );

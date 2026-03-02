@@ -3,13 +3,14 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import type { Role } from "@/pages/login";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseInstance";
 import useLoginForm from "@/hooks/useLoginForm";
 
 export default function DesktopLogin({
   role,
   setRole,
   RoleTabs,
+  onLoginSuccess,
 }: {
   role: Role;
   setRole: (role: Role) => void;
@@ -18,6 +19,7 @@ export default function DesktopLogin({
     setRole: (role: Role) => void;
     className?: string;
   }>;
+  onLoginSuccess?: () => void | Promise<void>;
 }) {
   const {
     handleSubmit,
@@ -45,9 +47,19 @@ export default function DesktopLogin({
     const redirectTo =
       typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
         ? redirectToRaw
-        : "/";
+        : null;
 
-    router.replace(redirectTo);
+    if (redirectTo) {
+      router.replace(redirectTo);
+      return;
+    }
+
+    if (onLoginSuccess) {
+      await onLoginSuccess();
+      return;
+    }
+
+    router.replace("/");
   };
 
   return (

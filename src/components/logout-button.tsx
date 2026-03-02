@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseInstance";
 import { useState } from "react";
 
 export default function LogoutButton({ className }: { className?: string }) {

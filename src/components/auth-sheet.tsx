@@ -9,14 +9,12 @@ export default function AuthSheet({
 
   return (
     <div className="fixed inset-0 z-60">
-      {/* overlay */}
       <button
         onClick={onClose}
         className="absolute inset-0 bg-black/40"
         aria-label="Close auth"
       />
 
-      {/* sheet */}
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-lg">Account</h2>

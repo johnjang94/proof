@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseInstance";
 
 type ProfileRow = {
   id: string;
@@ -7,20 +7,18 @@ type ProfileRow = {
   avatar_url: string | null;
 };
 
-const BUCKET = "avatars";
-
-function toPublicAvatarUrl(raw: string) {
+function normalizeAvatarUrl(raw: string) {
   const v = raw.trim();
   if (!v) return "";
-
   if (v.startsWith("http://") || v.startsWith("https://")) return v;
+
+  const base = (process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL ?? "").trim();
+  if (!base) return "";
 
   let path = v;
   if (path.startsWith("/")) path = path.slice(1);
-  if (path.startsWith(`${BUCKET}/`)) path = path.slice(BUCKET.length + 1);
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data?.publicUrl ?? "";
+  return `${base.replace(/\/$/, "")}/${path}`;
 }
 
 export function useProfileBadge() {
@@ -29,39 +27,63 @@ export function useProfileBadge() {
   const [initial, setInitial] = useState("U");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data, error }) => {
+    let alive = true;
+
+    const loadUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (!alive) return;
+
       if (error || !data.user) {
         setUser(null);
         setAvatarUrl("");
         setInitial("U");
         return;
       }
+
       const u = data.user;
       setUser({ id: u.id, email: u.email ?? undefined });
       setInitial((u.email?.[0] ?? "U").toUpperCase());
+    };
+
+    loadUser();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      loadUser();
     });
+
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
     if (!user) return;
+
+    let alive = true;
 
     const run = async () => {
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, avatar_path, avatar_url")
         .eq("id", user.id)
-        .single<ProfileRow>();
+        .maybeSingle<ProfileRow>();
+
+      if (!alive) return;
 
       const raw =
-        (profile?.avatar_path ?? "").trim() ||
-        (profile?.avatar_url ?? "").trim();
+        (profile?.avatar_url ?? "").trim() ||
+        (profile?.avatar_path ?? "").trim();
 
-      const finalUrl = raw ? toPublicAvatarUrl(raw) : "";
-
-      setAvatarUrl(finalUrl);
+      setAvatarUrl(raw ? normalizeAvatarUrl(raw) : "");
     };
 
     run();
+
+    return () => {
+      alive = false;
+    };
   }, [user]);
 
   return { user, avatarUrl, initial };

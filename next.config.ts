@@ -1,9 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  output: "export",
-  images: { unoptimized: true },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "assets.proofworks.ca",
+      },
+    ],
+    domains: ["images.unsplash.com"],
+  },
 };
 
 export default nextConfig;

@@ -9,7 +9,7 @@ import MobileNav from "@/components/mobile-navigation";
 
 function AuthHeader() {
   return (
-    <div className="sticky top-0 z-40 bg-black backdrop-blur border-b">
+    <div className="sticky top-0 bg-white border-b z-50">
       <div className="mx-auto flex items-center justify-center">
         <Link
           href="/"
@@ -17,10 +17,10 @@ function AuthHeader() {
           className="inline-flex items-center gap-2"
         >
           <Image
-            src="/sign-up-logo.png"
+            src="/logo.png"
             alt="PROOF"
-            width={150}
-            height={150}
+            width={50}
+            height={50}
             className="py-5"
           />
         </Link>
@@ -32,7 +32,12 @@ function AuthHeader() {
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
-  const isSignUpRoute = router.pathname.startsWith("/sign-up");
+  const authRoutes = ["/sign-up", "/welcome"];
+
+  const isSignUpRoute = authRoutes.some((route) =>
+    router.pathname.startsWith(route),
+  );
+
   const isLoginRoute = router.pathname === "/login";
 
   const hideDesktopNav = isLoginRoute || isSignUpRoute;
