@@ -4,6 +4,7 @@
   font-family: Arial, Helvetica, sans-serif;
   --color-silver: #f9fafb;
   --max-desktop: 1440px;
+  background-color: #f7f7f7;
 }
 
 .app-container {

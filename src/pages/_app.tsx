@@ -4,8 +4,8 @@ import { useRouter } from "next/router";
 import Image from "next/image";
 import Link from "next/link";
 
-import Navigation from "@/components/navigation";
-import MobileNav from "@/components/mobile-navigation";
+import MobileNav from "@/components/nav/mobile-navigation";
+import TopNav from "@/components/nav/navigation";
 
 function AuthHeader() {
   return (
@@ -30,32 +30,33 @@ function AuthHeader() {
 }
 
 export default function App({ Component, pageProps }: AppProps) {
-  const router = useRouter();
+  const { pathname } = useRouter();
 
   const authRoutes = ["/sign-up", "/welcome"];
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  const isLoginRoute = pathname === "/login";
+  const hideNav = isLoginRoute || isAuthRoute;
 
-  const isSignUpRoute = authRoutes.some((route) =>
-    router.pathname.startsWith(route),
-  );
+  const isClientRoute =
+    pathname.startsWith("/main/client") ||
+    pathname.startsWith("/client") ||
+    pathname.startsWith("/project/client");
 
-  const isLoginRoute = router.pathname === "/login";
-
-  const hideDesktopNav = isLoginRoute || isSignUpRoute;
-  const hideMobileNav = isLoginRoute || isSignUpRoute;
+  const variant = isClientRoute ? "client" : "participant";
 
   return (
     <>
-      {!hideDesktopNav && <Navigation />}
+      {!hideNav && <TopNav variant={variant} />}
 
-      {isSignUpRoute && <AuthHeader />}
+      {isAuthRoute && <AuthHeader />}
 
-      {!hideMobileNav && (
+      {!hideNav && (
         <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white">
           <MobileNav />
         </div>
       )}
 
-      <main className="pb-5 lg:pb-0">
+      <main className="pb-5 lg:pb-0 px-5">
         <Component {...pageProps} />
       </main>
     </>

@@ -9,6 +9,7 @@ type ProfileRow = {
   username: string | null;
   first_name: string | null;
   last_name: string | null;
+  company_name: string | null;
   role: string | null;
   points: number | null;
   avatar_url: string | null;
@@ -16,6 +17,8 @@ type ProfileRow = {
 
 type DisplayProfile = {
   name: string;
+  companyName: string | null;
+  role: string | null;
   avatarUrl: string | null;
   points: number;
 };
@@ -27,42 +30,38 @@ export default function ProfileSlot() {
   useEffect(() => {
     let mounted = true;
 
-    const load = async (reason: string) => {
-      console.groupCollapsed(`[ProfileSlot] load (${reason})`);
-
+    const load = async () => {
       try {
         const { data: userData } = await supabase.auth.getUser();
-
-        if (!mounted) {
-          console.groupEnd();
-          return;
-        }
+        if (!mounted) return;
 
         const u = userData?.user ?? null;
         setUser(u);
 
         if (!u) {
           setProfile(null);
-          console.groupEnd();
           return;
         }
 
-        const { data: p, error: profileErr } = await supabase
+        const { data: p, error } = await supabase
           .from("profiles")
-          .select("username, first_name, last_name, role, points, avatar_url")
+          .select(
+            "username, first_name, last_name, company_name, role, points, avatar_url",
+          )
           .eq("id", u.id)
           .single<ProfileRow>();
 
-        if (!mounted) {
-          console.groupEnd();
-          return;
-        }
+        if (!mounted) return;
 
-        if (profileErr || !p) {
+        if (error || !p) {
           const fallbackName = u.email ? u.email.split("@")[0] : "User";
-
-          setProfile({ name: fallbackName, avatarUrl: null, points: 0 });
-          console.groupEnd();
+          setProfile({
+            name: fallbackName,
+            companyName: null,
+            role: null,
+            avatarUrl: null,
+            points: 0,
+          });
           return;
         }
 
@@ -73,21 +72,20 @@ export default function ProfileSlot() {
 
         setProfile({
           name,
-          avatarUrl: (p.avatar_url as string | null) ?? null,
-          points: (p.points as number | null) ?? 0,
+          companyName: (p.company_name ?? "").trim() || null,
+          role: p.role ?? null,
+          avatarUrl: p.avatar_url ?? null,
+          points: p.points ?? 0,
         });
-
-        console.groupEnd();
-      } catch (e) {
-        console.error("[ProfileSlot] unexpected error:", e);
-        console.groupEnd();
+      } catch {
+        setProfile(null);
       }
     };
 
-    load("mount");
+    load();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      load(`auth:${event}`);
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      load();
     });
 
     return () => {
@@ -117,24 +115,27 @@ export default function ProfileSlot() {
       className="hidden sm:flex items-center gap-2 rounded-xl p-2 hover:bg-slate-100"
       aria-label={label}
     >
-      <div className="h-10 w-10 overflow-hidden rounded-full bg-slate-200">
+      <div className="h-15 w-25 overflow-hidden rounded-4xl bg-slate-200">
         {profile.avatarUrl ? (
-          <Image
-            src={profile.avatarUrl}
-            alt="avatar"
-            width={40}
-            height={40}
-            className="h-10 w-10 object-cover"
-          />
+          <Image src={profile.avatarUrl} alt="avatar" width={80} height={80} />
         ) : null}
       </div>
 
       <div className="leading-tight w-full">
         <span className="font-medium">{profile.name}</span>
         <br />
-        <span className="text-xs text-slate-500">
-          {profile.points.toLocaleString()} pts
-        </span>
+
+        {profile.role === "client" ? (
+          profile.companyName ? (
+            <span className="text-xs text-slate-500">
+              {profile.companyName}
+            </span>
+          ) : null
+        ) : profile.role === "participant" ? (
+          <span className="text-xs text-slate-500">
+            {profile.points.toLocaleString()} pts
+          </span>
+        ) : null}
       </div>
     </Link>
   );

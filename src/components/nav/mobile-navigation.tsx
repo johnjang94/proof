@@ -10,7 +10,7 @@ import { BsSuitcaseLg } from "react-icons/bs";
 import { FaSuitcase } from "react-icons/fa";
 import { CiChat1 } from "react-icons/ci";
 import { CgProfile } from "react-icons/cg";
-import { useProfileBadge } from "./nav/profile-photo";
+import { useProfileBadge } from "../nav-photos/profile-photo";
 
 type Tab = { href: string; label: string; off: IconType; on: IconType };
 
