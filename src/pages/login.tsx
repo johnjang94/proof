@@ -5,6 +5,7 @@ import RoleTabs from "@/components/login/RoleTabs";
 import DesktopLogin from "@/components/login/desktop-login";
 import MobileLogin from "@/components/login/mobile-login";
 import { getMyRole, type Role as DbRole } from "@/lib/auth/getMyRole";
+import { supabase } from "@/lib/supabaseInstance";
 
 export type Role = "participant" | "client";
 
@@ -34,7 +35,13 @@ export default function Login() {
     const from = router.query.from;
     if (from === "signup") return;
 
-    redirectByRole();
+    const run = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return;
+      await redirectByRole();
+    };
+
+    run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
 

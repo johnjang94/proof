@@ -66,12 +66,7 @@ export default function DesktopLogin({
     <div className="mx-auto flex my-20">
       <section className="w-1/2 items-center justify-center flex">
         <Link href="/">
-          <Image
-            src="/logo+slogan_white.png"
-            alt="logo"
-            width={2000}
-            height={2000}
-          />
+          <Image src="/slogan.png" alt="logo" width={2000} height={2000} />
         </Link>
       </section>
 

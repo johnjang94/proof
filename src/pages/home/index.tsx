@@ -141,7 +141,7 @@ function statusUI(status: ProjectStatus) {
   };
 }
 
-export default function Main() {
+export default function Home() {
   return (
     <main className="mx-auto w-full px-6 pb-16">
       <section className="mb-8 text-center">

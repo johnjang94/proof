@@ -3,6 +3,10 @@ import { supabase } from "../supabaseInstance";
 export type Role = "participant" | "client" | "hr" | "admin";
 
 export async function getMyRole(): Promise<Role | null> {
+  const { data: sessionData, error: sessionErr } =
+    await supabase.auth.getSession();
+  if (sessionErr || !sessionData.session) return null;
+
   const {
     data: { user },
     error: userErr,

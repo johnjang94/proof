@@ -95,7 +95,9 @@ export default function TopNav({ variant }: { variant: NavVariant }) {
           placeholder="Search..."
           className={`${searchWidthClass} rounded-xl border border-slate-400 px-3 py-1.5`}
         />
-        <ProfileSlot />
+        <div className="shrink-0 relative z-10">
+          <ProfileSlot />
+        </div>
       </div>
 
       {showClientIcons && (
