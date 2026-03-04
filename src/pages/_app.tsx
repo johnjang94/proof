@@ -140,7 +140,7 @@ export default function App({ Component, pageProps }: AppProps) {
         </div>
       )}
 
-      <main className="pb-5 lg:pb-0 px-5">
+      <main className="pb-5 lg:pb-0 lg:px-5">
         {shouldBlockPage ? null : <Component {...pageProps} />}
       </main>
     </>

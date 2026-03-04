@@ -55,12 +55,7 @@ export default function MobileLogin({
     <main className="min-h-screen bg-zinc-300 flex flex-col">
       <div className="h-60 flex items-center justify-center">
         <Link href="/">
-          <Image
-            src="/logo+slogan_white.png"
-            alt="logo"
-            width={2000}
-            height={2000}
-          />
+          <Image src="/logo+slogan.png" alt="logo" width={2000} height={2000} />
         </Link>
       </div>
 
