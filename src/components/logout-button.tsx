@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseInstance";
 import { useState } from "react";
 
 export default function LogoutButton({ className }: { className?: string }) {
@@ -10,10 +10,22 @@ export default function LogoutButton({ className }: { className?: string }) {
     if (loading) return;
     setLoading(true);
 
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("logout error:", error);
+        return;
+      }
 
-    setLoading(false);
-    router.replace("/login");
+      const { data } = await supabase.auth.getUser();
+      console.log("after logout user:", data.user);
+
+      router.replace("/login");
+    } catch (e) {
+      console.error("logout exception:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

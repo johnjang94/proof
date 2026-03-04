@@ -7,7 +7,15 @@ const withPWA = require("next-pwa")({
 });
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "assets.proofworks.ca",
+      },
+    ],
+    domains: ["images.unsplash.com"],
+  },
 };
 
 export default withPWA(nextConfig);

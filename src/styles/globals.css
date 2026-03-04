@@ -4,6 +4,7 @@
   font-family: Arial, Helvetica, sans-serif;
   --color-silver: #f9fafb;
   --max-desktop: 1440px;
+  background-color: #f7f7f7;
 }
 
 .app-container {
@@ -11,4 +12,22 @@
   margin-left: auto;
   margin-right: auto;
   width: 100%;
+}
+
+.pill-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.pill-draw {
+  animation: pillBorderDraw 900ms ease-out forwards;
+}
+
+@keyframes pillBorderDraw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
