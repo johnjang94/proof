@@ -1,38 +1,9 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId } from "react";
 
 export default function ProjectIntake() {
   const id = useId();
-
-  const [projectName, setProjectName] = useState("");
-  const [timeInvestment, setTimeInvestment] = useState("");
-  const [budgetRange, setBudgetRange] = useState("");
-  const [projectDescription, setProjectDescription] = useState("");
-  const [goals, setGoals] = useState("");
-
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
-
-  async function handleSubmit() {
-    const res = await fetch(`${API_BASE}/project-intakes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        clientUserId: "test-user-1",
-        email: "test@test.com",
-        projectName,
-        timeInvestment,
-        budgetRange,
-        projectDescription,
-        goals,
-      }),
-    });
-
-    const data = await res.json();
-    console.log(data);
-  }
 
   return (
     <div className="min-h-[85vh]">
@@ -66,8 +37,6 @@ export default function ProjectIntake() {
                 <input
                   id={`${id}-name`}
                   type="text"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
                   placeholder="i.e. Bloom the Flowers"
                   className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
                 />
@@ -82,9 +51,8 @@ export default function ProjectIntake() {
                 </label>
                 <select
                   id={`${id}-time`}
-                  value={timeInvestment}
-                  onChange={(e) => setTimeInvestment(e.target.value)}
                   className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+                  defaultValue=""
                 >
                   <option value="" disabled>
                     Please choose
@@ -105,9 +73,8 @@ export default function ProjectIntake() {
                 </label>
                 <select
                   id={`${id}-budget`}
-                  value={budgetRange}
-                  onChange={(e) => setBudgetRange(e.target.value)}
                   className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+                  defaultValue=""
                 >
                   <option value="" disabled>
                     Please choose
@@ -129,11 +96,54 @@ export default function ProjectIntake() {
                 <textarea
                   id={`${id}-desc`}
                   rows={5}
-                  value={projectDescription}
-                  onChange={(e) => setProjectDescription(e.target.value)}
-                  placeholder="i.e. (company name) is (a platform / a website / a product) that offers (service / product)."
+                  placeholder="i.e. (company name) is (a platform / a website / a product) that offers (service / product). We are here to (describe the purpose) and hope to achieve (goal)."
                   className="mt-2 w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-900">
+                    Project Description (MP4)
+                  </label>
+                  <span className="rounded bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                    optional
+                  </span>
+                </div>
+
+                <label
+                  htmlFor={`${id}-mp4`}
+                  className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-10 w-10 text-gray-700"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 16V4" />
+                    <path d="M7 9l5-5 5 5" />
+                    <path d="M20 16v4H4v-4" />
+                  </svg>
+                  <div className="mt-3 text-sm font-medium text-gray-800">
+                    Drag & Drop your video here
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    ...or click here to browse
+                  </div>
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    supported file type: .mp4
+                  </div>
+                  <input
+                    id={`${id}-mp4`}
+                    type="file"
+                    accept="video/mp4"
+                    className="hidden"
+                  />
+                </label>
               </div>
 
               <div>
@@ -146,11 +156,48 @@ export default function ProjectIntake() {
                 <input
                   id={`${id}-goals`}
                   type="text"
-                  value={goals}
-                  onChange={(e) => setGoals(e.target.value)}
                   placeholder="i.e. I hope to achieve..."
                   className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900">
+                  Project Thumbnail
+                </label>
+                <label
+                  htmlFor={`${id}-thumb`}
+                  className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-10 w-10 text-gray-700"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 16V4" />
+                    <path d="M7 9l5-5 5 5" />
+                    <path d="M20 16v4H4v-4" />
+                  </svg>
+                  <div className="mt-3 text-sm font-medium text-gray-800">
+                    Drag & Drop your photo here
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    ...or click here to browse
+                  </div>
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    supported file types: .jpg, .png
+                  </div>
+                  <input
+                    id={`${id}-thumb`}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </label>
               </div>
 
               <div className="mt-2 flex items-center justify-between pt-2">
@@ -163,7 +210,6 @@ export default function ProjectIntake() {
 
                 <button
                   type="button"
-                  onClick={handleSubmit}
                   className="rounded-md bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-600"
                 >
                   Submit
