@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseInstance";
+import { useEffect, useMemo, useState } from "react";
+
+type AuthUser = {
+  id: string;
+  email?: string;
+} | null;
 
 type ProfileRow = {
   id: string;
@@ -21,49 +25,25 @@ function normalizeAvatarUrl(raw: string) {
   return `${base.replace(/\/$/, "")}/${path}`;
 }
 
-export function useProfileBadge() {
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+export function useProfileBadge(user: AuthUser) {
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [initial, setInitial] = useState("U");
+
+  const initial = useMemo(
+    () => (user?.email?.[0] ?? "U").toUpperCase(),
+    [user?.email],
+  );
 
   useEffect(() => {
-    let alive = true;
-
-    const loadUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-
-      if (!alive) return;
-
-      if (error || !data.user) {
-        setUser(null);
-        setAvatarUrl("");
-        setInitial("U");
-        return;
-      }
-
-      const u = data.user;
-      setUser({ id: u.id, email: u.email ?? undefined });
-      setInitial((u.email?.[0] ?? "U").toUpperCase());
-    };
-
-    loadUser();
-
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      loadUser();
-    });
-
-    return () => {
-      alive = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setAvatarUrl("");
+      return;
+    }
 
     let alive = true;
 
     const run = async () => {
+      const { supabase } = await import("@/lib/supabaseInstance");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, avatar_path, avatar_url")
@@ -79,7 +59,7 @@ export function useProfileBadge() {
       setAvatarUrl(raw ? normalizeAvatarUrl(raw) : "");
     };
 
-    run();
+    void run();
 
     return () => {
       alive = false;

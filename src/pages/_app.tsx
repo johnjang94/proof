@@ -10,19 +10,18 @@ import TopNav from "@/components/nav/navigation";
 import { getMyRole, type Role as DbRole } from "@/lib/auth/getMyRole";
 import { supabase } from "@/lib/supabaseInstance";
 
-declare global {
-  interface Window {
-    supabase: typeof supabase;
-  }
-}
+type AuthUser = {
+  id: string;
+  email?: string;
+} | null;
 
-if (typeof window !== "undefined") {
-  window.supabase = supabase;
-}
+type ExtendedPageProps = {
+  isLoggedIn?: boolean;
+};
 
 function AuthHeader() {
   return (
-    <div className="sticky top-0 bg-white border-b z-50">
+    <div className="sticky top-0 z-50 border-b bg-white">
       <div className="mx-auto flex items-center justify-center">
         <Link
           href="/"
@@ -42,15 +41,29 @@ function AuthHeader() {
   );
 }
 
-export default function App({ Component, pageProps }: AppProps) {
+function PageShell() {
+  return <div className="min-h-[60vh]" />;
+}
+
+export default function App({
+  Component,
+  pageProps,
+}: AppProps<ExtendedPageProps>) {
   const router = useRouter();
   const pathname = router.pathname ?? "/";
+  const asPath = router.asPath ?? "/";
 
   const authRoutes = ["/sign-up", "/welcome"];
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
   const isLoginRoute = pathname === "/login";
   const isHomeRoute = pathname === "/";
+  const isShoppingRoute = pathname === "/category/shopping";
+  const isJobsRoute = pathname === "/category/jobs";
+  const isChatRoute = pathname === "/category/chat";
   const hideNav = isLoginRoute || isAuthRoute;
+
+  const isPublicProjectDetailRoute =
+    pathname === "/main/participant/project/[id]";
 
   const isClientRoute =
     pathname.startsWith("/main/client") ||
@@ -58,8 +71,13 @@ export default function App({ Component, pageProps }: AppProps) {
     pathname.startsWith("/project/client") ||
     pathname.startsWith("/category/profile/client");
 
-  const variant = isClientRoute ? "client" : "participant";
-  const [role, setRole] = useState<DbRole | null | undefined>(undefined);
+  const variant: "participant" | "client" = isClientRoute
+    ? "client"
+    : "participant";
+
+  const [role, setRole] = useState<DbRole | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser>(null);
+  const [authResolved, setAuthResolved] = useState(false);
 
   const roleHome = useMemo<Record<DbRole, string>>(
     () => ({
@@ -71,77 +89,153 @@ export default function App({ Component, pageProps }: AppProps) {
     [],
   );
 
-  const guestAllowed = isHomeRoute || isLoginRoute || isAuthRoute;
+  const guestAllowed =
+    isHomeRoute ||
+    isLoginRoute ||
+    isAuthRoute ||
+    isPublicProjectDetailRoute ||
+    isShoppingRoute ||
+    isJobsRoute ||
+    isChatRoute;
+
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) setRole(null);
-      else setRole(undefined);
+    let alive = true;
+
+    const syncFromSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!alive) return;
+
+      if (!session) {
+        setAuthUser(null);
+        setRole(null);
+        setAuthResolved(true);
+        return;
+      }
+
+      setAuthUser({
+        id: session.user.id,
+        email: session.user.email ?? undefined,
+      });
+
+      const dbRole = await getMyRole();
+
+      if (!alive) return;
+
+      setRole(dbRole ?? null);
+      setAuthResolved(true);
+    };
+
+    void syncFromSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!alive) return;
+
+      if (event === "SIGNED_OUT" || !session) {
+        setAuthUser(null);
+        setRole(null);
+        setAuthResolved(true);
+        return;
+      }
+
+      setAuthUser({
+        id: session.user.id,
+        email: session.user.email ?? undefined,
+      });
+
+      if (
+        event === "SIGNED_IN" ||
+        event === "INITIAL_SESSION" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
+      ) {
+        const dbRole = await getMyRole();
+
+        if (!alive) return;
+
+        setRole(dbRole ?? null);
+        setAuthResolved(true);
+      }
     });
 
     return () => {
-      data.subscription.unsubscribe();
+      alive = false;
+      subscription.unsubscribe();
     };
   }, []);
 
   useEffect(() => {
-    if (role !== undefined) return;
-    let cancelled = false;
-
-    const run = async () => {
-      const dbRole = await getMyRole();
-      if (cancelled) return;
-      setRole(dbRole ?? null);
-    };
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [role]);
-
-  useEffect(() => {
     if (!router.isReady) return;
-    if (role === undefined) return;
+    if (!authResolved) return;
+
     if (role === null) {
       if (guestAllowed) return;
-      const next = encodeURIComponent(pathname);
-      router.replace(`/login?redirectTo=${next}`);
+
+      const next = encodeURIComponent(asPath);
+      void router.replace(`/login?redirectTo=${next}`);
       return;
     }
 
     if (pathname === "/") {
-      router.replace(roleHome[role]);
+      if (router.asPath !== roleHome[role]) {
+        void router.replace(roleHome[role]);
+      }
       return;
     }
 
-    if (role === "client" && !isClientRoute) {
-      router.replace(roleHome.client);
+    if (role === "client" && !isClientRoute && !isPublicProjectDetailRoute) {
+      if (router.asPath !== roleHome.client) {
+        void router.replace(roleHome.client);
+      }
       return;
     }
 
-    if (role === "participant" && isClientRoute) {
-      router.replace(roleHome.participant);
-      return;
+    if (
+      role === "participant" &&
+      isClientRoute &&
+      !isPublicProjectDetailRoute
+    ) {
+      if (router.asPath !== roleHome.participant) {
+        void router.replace(roleHome.participant);
+      }
     }
-  }, [router, pathname, role, roleHome, isClientRoute, guestAllowed]);
+  }, [
+    asPath,
+    authResolved,
+    guestAllowed,
+    isClientRoute,
+    isPublicProjectDetailRoute,
+    pathname,
+    role,
+    roleHome,
+    router,
+  ]);
 
-  const shouldBlockPage = role === undefined;
+  const shouldBlockPage = !authResolved && !guestAllowed;
+  const isLoggedIn = role !== null;
 
   return (
     <>
-      {!hideNav && <TopNav variant={variant} />}
+      {!hideNav && <TopNav variant={variant} authUser={authUser} />}
 
       {isAuthRoute && <AuthHeader />}
 
       {!hideNav && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white">
-          <MobileNav />
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white lg:hidden">
+          <MobileNav authUser={authUser} />
         </div>
       )}
 
-      <main className="pb-5 lg:pb-0 lg:px-5">
-        {shouldBlockPage ? null : <Component {...pageProps} />}
+      <main className="pb-5 lg:px-5 lg:pb-0">
+        {shouldBlockPage ? (
+          <PageShell />
+        ) : (
+          <Component {...pageProps} isLoggedIn={isLoggedIn} />
+        )}
       </main>
     </>
   );

@@ -5,6 +5,31 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseInstance";
 import useLoginForm from "@/hooks/useLoginForm";
 
+async function waitForSupabaseSession(timeoutMs = 3000) {
+  const {
+    data: { session: initialSession },
+  } = await supabase.auth.getSession();
+
+  if (initialSession) return initialSession;
+
+  return await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      subscription.unsubscribe();
+      reject(new Error("Session was not established in time."));
+    }, timeoutMs);
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        clearTimeout(timer);
+        subscription.unsubscribe();
+        resolve(session);
+      }
+    });
+  });
+}
+
 export default function MobileLogin({
   onLoginSuccess,
 }: {
@@ -18,6 +43,7 @@ export default function MobileLogin({
     errors,
     canLogin,
     passwordOk,
+    isSubmitting,
     emailRegister,
     passwordRegister,
   } = useLoginForm();
@@ -32,42 +58,46 @@ export default function MobileLogin({
       return;
     }
 
+    try {
+      await waitForSupabaseSession();
+    } catch {
+      setAuthError(
+        "Login succeeded, but session sync was delayed. Please try again.",
+      );
+      return;
+    }
+
     const redirectToRaw = router.query.redirectTo;
     const redirectTo =
       typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
         ? redirectToRaw
         : null;
 
-    if (redirectTo) {
-      router.replace(redirectTo);
-      return;
-    }
-
     if (onLoginSuccess) {
       await onLoginSuccess();
       return;
     }
 
-    router.replace("/");
+    await router.replace(redirectTo ?? "/");
   };
 
   return (
-    <main className="min-h-screen bg-zinc-300 flex flex-col">
-      <div className="h-60 flex items-center justify-center">
+    <main className="flex min-h-screen flex-col bg-zinc-300">
+      <div className="flex h-60 items-center justify-center">
         <Link href="/">
           <Image src="/logo+slogan.png" alt="logo" width={2000} height={2000} />
         </Link>
       </div>
 
-      <section className="flex-1 bg-white rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-2 pt-4">
+      <section className="flex-1 rounded-t-2xl bg-white px-2 pt-4 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
         <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-5">
           <div>
-            <label className="block text-xl font-medium mb-2">
+            <label className="mb-2 block text-xl font-medium">
               Email address
             </label>
             <input
               {...emailRegister}
-              className="w-full h-12 rounded-lg border border-zinc-800/60 px-3 text-lg outline-none"
+              className="h-12 w-full rounded-lg border border-zinc-800/60 px-3 text-lg outline-none"
             />
             {errors.email?.message ? (
               <p className="mt-2 text-sm text-red-600">
@@ -77,11 +107,11 @@ export default function MobileLogin({
           </div>
 
           <div>
-            <label className="block text-xl font-medium mb-2">Password</label>
+            <label className="mb-2 block text-xl font-medium">Password</label>
             <input
               type="password"
               {...passwordRegister}
-              className="w-full h-12 rounded-lg border border-zinc-800/60 px-3 text-lg outline-none"
+              className="h-12 w-full rounded-lg border border-zinc-800/60 px-3 text-lg outline-none"
             />
             {errors.password?.message ? (
               <p className="mt-2 text-sm text-red-600">
@@ -98,15 +128,15 @@ export default function MobileLogin({
 
           <button
             type="submit"
-            disabled={!canLogin}
+            disabled={!canLogin || isSubmitting}
             className={[
-              "w-full h-12 rounded-lg text-xl font-medium transition-colors",
-              passwordOk
+              "h-12 w-full rounded-lg text-xl font-medium transition-colors",
+              passwordOk && !isSubmitting
                 ? "bg-cyan-600 text-white hover:cursor-pointer"
-                : "bg-zinc-200 text-zinc-600 cursor-not-allowed",
+                : "cursor-not-allowed bg-zinc-200 text-zinc-600",
             ].join(" ")}
           >
-            Login
+            {isSubmitting ? "Logging in..." : "Login"}
           </button>
 
           <button type="button" className="text-left text-lg text-blue-600">
@@ -116,7 +146,7 @@ export default function MobileLogin({
           <button
             type="button"
             onClick={() => router.push("/sign-up/participant")}
-            className="w-full h-12 mt-20 rounded-lg bg-blue-600 text-xl text-white font-medium"
+            className="mt-20 h-12 w-full rounded-lg bg-blue-600 text-xl font-medium text-white"
           >
             Become a participant
           </button>

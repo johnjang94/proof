@@ -1,18 +1,14 @@
-import Image from "next/image";
+"use client";
 
-export default function Jobs() {
+import { BsSuitcaseLg } from "react-icons/bs";
+import ComingSoon from "@/components/common/coming-soon";
+
+export default function JobsPage() {
   return (
-    <div className="flex justify-center">
-      <div className="my-10 text-center">
-        <Image
-          src="/logo+slogan_white.png"
-          alt="logo"
-          width={420}
-          height={420}
-          priority
-        />
-        <h1 className="text-xl">Coming soon</h1>
-      </div>
-    </div>
+    <ComingSoon
+      title="Jobs is coming soon"
+      subtitle="We’re building a better way to explore opportunities, discover project-based work, and connect with real-world roles."
+      icon={BsSuitcaseLg}
+    />
   );
 }

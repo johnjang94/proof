@@ -12,15 +12,13 @@ export default function LogoutButton({ className }: { className?: string }) {
 
     try {
       const { error } = await supabase.auth.signOut();
+
       if (error) {
         console.error("logout error:", error);
         return;
       }
 
-      const { data } = await supabase.auth.getUser();
-      console.log("after logout user:", data.user);
-
-      router.replace("/login");
+      await router.replace("/login");
     } catch (e) {
       console.error("logout exception:", e);
     } finally {

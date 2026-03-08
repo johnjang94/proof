@@ -1,18 +1,14 @@
-import Image from "next/image";
+"use client";
 
-export default function Chat() {
+import { CiChat1 } from "react-icons/ci";
+import ComingSoon from "@/components/common/coming-soon";
+
+export default function ChatPage() {
   return (
-    <div className="flex justify-center">
-      <div className="my-10 text-center">
-        <Image
-          src="/logo+slogan_white.png"
-          alt="logo"
-          width={420}
-          height={420}
-          priority
-        />
-        <h1 className="text-xl">Coming soon</h1>
-      </div>
-    </div>
+    <ComingSoon
+      title="Chat is coming soon"
+      subtitle="Messaging is being designed to feel faster, cleaner, and more focused for real collaboration."
+      icon={CiChat1}
+    />
   );
 }

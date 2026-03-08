@@ -2,17 +2,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CgProfile } from "react-icons/cg";
-import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseInstance";
 
+type AuthUser = {
+  id: string;
+  email?: string;
+} | null;
+
 type ProfileRow = {
-  username: string | null;
   first_name: string | null;
   last_name: string | null;
   company_name: string | null;
   role: string | null;
   points: number | null;
   avatar_url: string | null;
+  avatar_path?: string | null;
 };
 
 type DisplayProfile = {
@@ -23,33 +27,47 @@ type DisplayProfile = {
   points: number;
 };
 
-export default function ProfileSlot() {
-  const [user, setUser] = useState<User | null>(null);
+function normalizeAvatarUrl(raw: string | null | undefined) {
+  const value = (raw ?? "").trim();
+  if (!value) return null;
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  const base = (process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL ?? "").trim();
+  if (!base) return null;
+
+  const cleanPath = value.startsWith("/") ? value.slice(1) : value;
+  return `${base.replace(/\/$/, "")}/${cleanPath}`;
+}
+
+export default function ProfileSlot({ authUser }: { authUser: AuthUser }) {
   const [profile, setProfile] = useState<DisplayProfile | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    const load = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!mounted) return;
-
-      const u = userData?.user ?? null;
-      setUser(u);
-
-      if (!u) {
+    const loadProfile = async () => {
+      if (!authUser) {
         setProfile(null);
         return;
       }
 
-      const { data: p } = await supabase
+      const { data: p, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, company_name, role, points, avatar_url")
-        .eq("id", u.id)
-        .single<ProfileRow>();
+        .select(
+          "first_name, last_name, company_name, role, points, avatar_url, avatar_path",
+        )
+        .eq("id", authUser.id)
+        .maybeSingle<ProfileRow>();
 
       if (!mounted) return;
-      if (!p) return;
+
+      if (error || !p) {
+        setProfile(null);
+        return;
+      }
 
       const first = (p.first_name ?? "").trim();
       const last = (p.last_name ?? "").trim();
@@ -59,34 +77,34 @@ export default function ProfileSlot() {
         name: fullName || "User",
         companyName: (p.company_name ?? "").trim() || null,
         role: p.role ?? null,
-        avatarUrl: p.avatar_url ?? null,
+        avatarUrl:
+          normalizeAvatarUrl(p.avatar_url) ??
+          normalizeAvatarUrl(p.avatar_path) ??
+          null,
         points: p.points ?? 0,
       });
     };
 
-    load();
-
-    const { data: sub } = supabase.auth.onAuthStateChange(() => load());
+    void loadProfile();
 
     return () => {
       mounted = false;
-      sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [authUser]);
 
   const href = useMemo(() => {
-    if (!user) return "/login";
+    if (!authUser) return "/login";
     if (profile?.role === "client") return "/category/profile/client";
     return "/category/profile/participant";
-  }, [user, profile?.role]);
+  }, [authUser, profile?.role]);
 
-  const label = useMemo(() => (user ? "Profile" : "Login"), [user]);
+  const label = useMemo(() => (authUser ? "Profile" : "Login"), [authUser]);
 
-  if (!user || !profile) {
+  if (!authUser || !profile) {
     return (
       <Link
         href={href}
-        className="hidden sm:block cursor-pointer p-2"
+        className="hidden cursor-pointer p-2 sm:block"
         aria-label={label}
       >
         <CgProfile className="text-3xl" />
@@ -97,16 +115,23 @@ export default function ProfileSlot() {
   return (
     <Link
       href={href}
-      className="hidden sm:flex items-center gap-2 rounded-xl p-2 hover:bg-slate-100"
+      className="hidden items-center gap-2 rounded-xl p-2 hover:bg-slate-100 sm:flex"
       aria-label={label}
     >
       <div className="h-14 w-20 overflow-hidden rounded-4xl bg-slate-200">
         {profile.avatarUrl ? (
-          <Image src={profile.avatarUrl} alt="avatar" width={80} height={80} />
+          <Image
+            src={profile.avatarUrl}
+            alt="avatar"
+            width={80}
+            height={80}
+            className="h-full w-full object-cover"
+            unoptimized
+          />
         ) : null}
       </div>
 
-      <div className="leading-tight w-full">
+      <div className="w-full leading-tight">
         <span className="font-medium">{profile.name}</span>
         <br />
 

@@ -1,18 +1,14 @@
-import Image from "next/image";
+"use client";
 
-export default function Shopping() {
+import { FiShoppingBag } from "react-icons/fi";
+import ComingSoon from "@/components/common/coming-soon";
+
+export default function ShoppingPage() {
   return (
-    <div className="flex justify-center">
-      <div className="my-10 text-center">
-        <Image
-          src="/logo+slogan_white.png"
-          alt="logo"
-          width={420}
-          height={420}
-          priority
-        />
-        <h1 className="text-xl">Coming soon</h1>
-      </div>
-    </div>
+    <ComingSoon
+      title="Shopping is coming soon"
+      subtitle="We’re preparing a more premium shopping experience with curated items, cleaner discovery, and a smoother flow."
+      icon={FiShoppingBag}
+    />
   );
 }

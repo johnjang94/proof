@@ -6,9 +6,19 @@ import { IoCartOutline } from "react-icons/io5";
 import { MdOutlineNotificationsNone } from "react-icons/md";
 import ProfileSlot from "../nav-photos/profile-slot";
 
-type NavVariant = "participant" | "client";
+export type NavVariant = "participant" | "client";
 
-export default function TopNav({ variant }: { variant: NavVariant }) {
+export type AuthUser = {
+  id: string;
+  email?: string;
+} | null;
+
+type TopNavProps = {
+  variant: NavVariant;
+  authUser: AuthUser;
+};
+
+export default function TopNav({ variant, authUser }: TopNavProps) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -25,6 +35,7 @@ export default function TopNav({ variant }: { variant: NavVariant }) {
 
     document.addEventListener("mousedown", onMouseDown);
     document.addEventListener("keydown", onKeyDown);
+
     return () => {
       document.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("keydown", onKeyDown);
@@ -33,7 +44,6 @@ export default function TopNav({ variant }: { variant: NavVariant }) {
 
   const showHamburger = variant === "participant";
   const showClientIcons = variant === "client";
-
   const searchWidthClass = variant === "client" ? "w-5/6" : "w-full";
 
   const menuItems = useMemo(
@@ -95,8 +105,8 @@ export default function TopNav({ variant }: { variant: NavVariant }) {
           placeholder="Search..."
           className={`${searchWidthClass} rounded-xl border border-slate-400 px-3 py-1.5`}
         />
-        <div className="shrink-0 relative z-10">
-          <ProfileSlot />
+        <div className="relative z-10 shrink-0">
+          <ProfileSlot authUser={authUser} />
         </div>
       </div>
 

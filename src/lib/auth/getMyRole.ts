@@ -2,23 +2,37 @@ import { supabase } from "../supabaseInstance";
 
 export type Role = "participant" | "client" | "hr" | "admin";
 
-export async function getMyRole(): Promise<Role | null> {
-  const { data: sessionData, error: sessionErr } =
-    await supabase.auth.getSession();
-  if (sessionErr || !sessionData.session) return null;
+const VALID_ROLES = new Set<Role>(["participant", "client", "hr", "admin"]);
 
+export async function getMyRole(): Promise<Role | null> {
   const {
     data: { user },
-    error: userErr,
+    error: userError,
   } = await supabase.auth.getUser();
-  if (userErr || !user) return null;
+
+  if (userError || !user) {
+    if (userError) {
+      console.error("getMyRole user error:", userError);
+    }
+    return null;
+  }
 
   const { data, error } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (error) return null;
-  return (data?.role as Role) ?? null;
+  if (error) {
+    console.error("getMyRole profile error:", error);
+    return null;
+  }
+
+  const role = data?.role;
+
+  if (!role || !VALID_ROLES.has(role as Role)) {
+    return null;
+  }
+
+  return role as Role;
 }
