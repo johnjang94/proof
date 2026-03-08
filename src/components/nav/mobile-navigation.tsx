@@ -53,8 +53,8 @@ export default function MobileNav({ authUser }: { authUser: AuthUser }) {
   const isActive = (href: string) =>
     href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
 
-  const profileHref = user ? "/category/profile" : "/login";
-  const profileActive = isActive("/category/profile") || isActive("/login");
+  const profileHref = user ? "/category/profile/participant" : "/login";
+  const profileActive = router.pathname === "/category/profile/participant";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white/95 backdrop-blur">
