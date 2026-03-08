@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
+    "start": "next start",
     "android": "pnpm build && pnpm cap sync android && pnpm cap open android"
   },
   "dependencies": {
