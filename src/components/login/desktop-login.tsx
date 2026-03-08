@@ -101,7 +101,14 @@ export default function DesktopLogin({
     <div className="mx-auto my-20 flex">
       <section className="flex w-1/2 items-center justify-center">
         <Link href="/">
-          <Image src="/slogan.png" alt="logo" width={2000} height={2000} />
+          <Image
+            src="/slogan.png"
+            alt="Slogan"
+            width={1200}
+            height={400}
+            unoptimized
+            priority
+          />
         </Link>
       </section>
 
@@ -112,6 +119,8 @@ export default function DesktopLogin({
           <form onSubmit={handleSubmit(onSubmit)}>
             <label className="mb-2 block text-sm">Email address</label>
             <input
+              type="email"
+              autoComplete="email"
               {...emailRegister}
               className="mb-2 w-full rounded-md border px-4 py-3"
             />
@@ -126,6 +135,7 @@ export default function DesktopLogin({
             <label className="mb-2 block text-sm">Password</label>
             <input
               type="password"
+              autoComplete="current-password"
               {...passwordRegister}
               className="mb-2 w-full rounded-md border px-4 py-3"
             />
