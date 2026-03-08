@@ -1,265 +1,249 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/router";
+import { apiFetch } from "@/lib/apiFetch";
 
-type ProjectStatus = "Open" | "Pending" | "Closed";
-
-type Project = {
+type ProjectItem = {
   id: string;
-  title: string;
-  typeTag: "Simulation";
-  badge: "practice";
-  imageSrc: string;
-  lookingForLabel: string;
-  lookingForValue: string;
-  hostedByLabel: string;
-  hostedByValue: string;
-  status: ProjectStatus;
-  noteLabel: string;
-  noteValue: string;
+  projectName: string;
+  budgetRange: string;
+  timeInvestment: string;
+  projectDescription: string;
+  goals: string;
+  thumbnailUrl: string | null;
+  mp4Url: string | null;
+  createdAt?: string;
+  status?: string;
+  client?: {
+    companyName?: string | null;
+    avatarUrl?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
 };
 
-const categories = [
-  "ALL",
-  "ACCOUNTING",
-  "ADMINISTRATION",
-  "DESIGN",
-  "DEVELOPMENT",
-  "MARKETING",
-  "SALES",
-  "TEACHING",
-  "WRITING",
-];
+function getHostedBy(project: ProjectItem) {
+  const companyName = project.client?.companyName?.trim();
+  if (companyName) return companyName;
 
-const projects: Project[] = [
-  {
-    id: "base-k",
-    title: "Base-K",
-    typeTag: "Simulation",
-    badge: "practice",
-    imageSrc: "/image/base-k-analysis.png",
-    lookingForLabel: "Looking for",
-    lookingForValue: "UX Designer",
-    hostedByLabel: "Hosted by",
-    hostedByValue: "Lumea Education",
-    status: "Open",
-    noteLabel: "Note",
-    noteValue: "This is a demo project",
-  },
-  {
-    id: "node-x",
-    title: "Node-X",
-    typeTag: "Simulation",
-    badge: "practice",
-    imageSrc: "/image/team-meeting.png",
-    lookingForLabel: "Looking for",
-    lookingForValue: "Project Coordinator",
-    hostedByLabel: "Hosted by",
-    hostedByValue: "Lumea Education",
-    status: "Pending",
-    noteLabel: "Note",
-    noteValue: "This is a demo project",
-  },
-  {
-    id: "opentab",
-    title: "OpenTab",
-    typeTag: "Simulation",
-    badge: "practice",
-    imageSrc: "/image/marketer.png",
-    lookingForLabel: "Looking for",
-    lookingForValue: "Digital Marketer",
-    hostedByLabel: "Hosted by",
-    hostedByValue: "Lumea Education",
-    status: "Closed",
-    noteLabel: "Note",
-    noteValue: "This is a demo project",
-  },
-  {
-    id: "wayfair",
-    title: "WayFair",
-    typeTag: "Simulation",
-    badge: "practice",
-    imageSrc: "/image/designing.png",
-    lookingForLabel: "Looking for",
-    lookingForValue: "UI Designer",
-    hostedByLabel: "Hosted by",
-    hostedByValue: "Lumea Education",
-    status: "Pending",
-    noteLabel: "Note",
-    noteValue: "This is a demo project",
-  },
-  {
-    id: "rooters",
-    title: "Rooters",
-    typeTag: "Simulation",
-    badge: "practice",
-    imageSrc: "/image/hr-rooters.png",
-    lookingForLabel: "Looking for",
-    lookingForValue: "HR Coordinator",
-    hostedByLabel: "Hosted by",
-    hostedByValue: "Lumea Education",
-    status: "Open",
-    noteLabel: "Note",
-    noteValue: "This is a demo project",
-  },
-  {
-    id: "synclab",
-    title: "SyncLab",
-    typeTag: "Simulation",
-    badge: "practice",
-    imageSrc: "/image/party-rock.png",
-    lookingForLabel: "Looking for",
-    lookingForValue: "Event Executioner",
-    hostedByLabel: "Hosted by",
-    hostedByValue: "Lumea Education",
-    status: "Open",
-    noteLabel: "Note",
-    noteValue: "This is a demo project",
-  },
-];
+  const fullName = [project.client?.firstName, project.client?.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
-function statusUI(status: ProjectStatus) {
-  if (status === "Open") {
-    return {
-      statusTextClass: "text-emerald-600",
-      buttonText: "Apply to Join",
-      buttonClass:
-        "border-emerald-400 text-emerald-700 hover:bg-[#00C48C] hover:text-white focus:ring-emerald-200",
-    };
+  if (fullName) return fullName;
+
+  return "Client";
+}
+
+function getHostedByInitial(project: ProjectItem) {
+  const hostedBy = getHostedBy(project);
+  return hostedBy.charAt(0).toUpperCase() || "C";
+}
+
+function formatRelativeTime(createdAt?: string) {
+  if (!createdAt) return "";
+
+  const created = new Date(createdAt).getTime();
+  if (Number.isNaN(created)) return "";
+
+  const now = Date.now();
+  const diffMs = now - created;
+
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+
+  if (diffMs < minute) return "just now";
+  if (diffMs < hour) {
+    const mins = Math.floor(diffMs / minute);
+    return `${mins} minute${mins > 1 ? "s" : ""} ago`;
   }
-  if (status === "Pending") {
-    return {
-      statusTextClass: "text-orange-500",
-      buttonText: "Coming soon",
-      buttonClass:
-        "border-orange-300 text-orange-600 hover:bg-orange-50 focus:ring-orange-200",
-    };
+  if (diffMs < day) {
+    const hours = Math.floor(diffMs / hour);
+    return `${hours} hour${hours > 1 ? "s" : ""} ago`;
   }
-  return {
-    statusTextClass: "text-neutral-400",
-    buttonText: "Under Review",
-    buttonClass:
-      "border-neutral-200 text-neutral-400 bg-neutral-50 cursor-not-allowed",
-  };
+  if (diffMs < week) {
+    const days = Math.floor(diffMs / day);
+    return `${days} day${days > 1 ? "s" : ""} ago`;
+  }
+
+  const weeks = Math.floor(diffMs / week);
+  if (weeks < 5) return `${weeks} week${weeks > 1 ? "s" : ""} ago`;
+
+  return new Date(createdAt).toLocaleDateString();
+}
+
+function getThumbnail(project: ProjectItem) {
+  return project.thumbnailUrl || null;
+}
+
+function getCompanyMeta(project: ProjectItem) {
+  return project.budgetRange?.trim() || project.timeInvestment?.trim() || "";
+}
+
+function sortByCreatedAtDesc(items: ProjectItem[]) {
+  return [...items].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
 }
 
 export default function Home() {
+  const router = useRouter();
+
+  const [publicProjects, setPublicProjects] = useState<ProjectItem[]>([]);
+  const [loadingPublic, setLoadingPublic] = useState(true);
+  const [publicError, setPublicError] = useState("");
+
+  useEffect(() => {
+    const loadPublicProjects = async () => {
+      try {
+        setLoadingPublic(true);
+        setPublicError("");
+
+        const res = await apiFetch("/projects/public", {
+          method: "GET",
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(
+            `Failed to load public projects (${res.status}). ${text}`,
+          );
+        }
+
+        const json = await res.json();
+        const items: ProjectItem[] = Array.isArray(json?.items)
+          ? json.items
+          : Array.isArray(json)
+            ? json
+            : [];
+
+        setPublicProjects(items);
+      } catch (err) {
+        console.error(err);
+        setPublicError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load public projects.",
+        );
+      } finally {
+        setLoadingPublic(false);
+      }
+    };
+
+    loadPublicProjects();
+  }, []);
+
+  const visiblePublicProjects = useMemo(
+    () => sortByCreatedAtDesc(publicProjects),
+    [publicProjects],
+  );
+
+  const goToProjectDetail = (projectId: string) => {
+    router.push(`/main/participant/project/${projectId}`);
+  };
+
   return (
-    <main className="mx-auto w-full px-6 pb-16">
-      <section className="mb-8 text-center">
-        <h1 className="md:text-3xl italic tracking-wide text-neutral-900 text-xl">
-          Work on real projects. Prove your skills. Build your track record
+    <main className="mx-auto w-full max-w-350 px-4 pb-16 md:px-6 lg:px-8">
+      <section className="mb-8 pt-2 text-center">
+        <h1 className="text-2xl italic font-medium tracking-[-0.02em] text-neutral-900 md:text-[2.1rem]">
+          Build proof through practical projects
         </h1>
       </section>
 
-      <section className="mb-8">
-        <div className="-mx-6 px-6">
-          <div
-            className={[
-              "flex gap-3 overflow-x-auto whitespace-nowrap",
-              "touch-pan-x overscroll-x-contain",
-              "py-1",
-              "scrollbar-none",
-              "lg:flex-wrap lg:justify-center lg:overflow-visible",
-            ].join(" ")}
-          >
-            {categories.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={[
-                  "shrink-0",
-                  "rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2",
-                  "text-xs font-medium tracking-wide text-neutral-700",
-                  "hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-200",
-                ].join(" ")}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p) => {
-            const ui = statusUI(p.status);
+        {loadingPublic ? (
+          <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-6 text-sm text-neutral-600 shadow-sm">
+            Loading projects...
+          </div>
+        ) : publicError ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-6 text-sm text-red-700 shadow-sm">
+            {publicError}
+          </div>
+        ) : visiblePublicProjects.length === 0 ? (
+          <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-6 text-sm text-neutral-600 shadow-sm">
+            No projects available yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
+            {visiblePublicProjects.map((project) => {
+              const hostedBy = getHostedBy(project);
+              const thumbnail = getThumbnail(project);
+              const relativeTime = formatRelativeTime(project.createdAt);
+              const companyMeta = getCompanyMeta(project);
 
-            return (
-              <article
-                key={p.id}
-                className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm"
-              >
-                <div className="relative h-44 w-full bg-neutral-100">
-                  <Image
-                    src={p.imageSrc}
-                    alt={`${p.title} thumbnail`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover"
-                  />
-
-                  <span className="absolute right-2 top-2 rounded-md bg-white/90 px-2 py-1 text-[10px] font-medium text-neutral-700">
-                    {p.badge}
-                  </span>
-                </div>
-
-                <div className="px-4 pb-4 pt-3">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
-                      {p.typeTag}
-                    </span>
-                    <h3 className="text-base font-medium text-neutral-900">
-                      {p.title}
-                    </h3>
+              return (
+                <article
+                  key={project.id}
+                  onClick={() => goToProjectDetail(project.id)}
+                  className="group cursor-pointer"
+                >
+                  <div className="relative mb-3 aspect-video w-full overflow-hidden rounded-[22px] bg-neutral-200">
+                    {thumbnail ? (
+                      <Image
+                        src={thumbnail}
+                        alt={`${project.projectName} thumbnail`}
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                        className="object-cover transition duration-300 group-hover:scale-[1.02]"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-sm text-neutral-400">
+                        No thumbnail
+                      </div>
+                    )}
                   </div>
 
-                  <dl className="space-y-2 text-sm">
-                    <div className="grid grid-cols-2 gap-3">
-                      <dt className="text-neutral-500">{p.lookingForLabel}</dt>
-                      <dd className="text-right text-neutral-800">
-                        {p.lookingForValue}
-                      </dd>
-                    </div>
+                  <div className="flex items-start gap-3 px-1">
+                    {project.client?.avatarUrl ? (
+                      <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                        <Image
+                          src={project.client.avatarUrl}
+                          alt={`${hostedBy} avatar`}
+                          fill
+                          sizes="36px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ) : (
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-xs font-semibold text-neutral-600">
+                        {getHostedByInitial(project)}
+                      </div>
+                    )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <dt className="text-neutral-500">{p.hostedByLabel}</dt>
-                      <dd className="text-right text-neutral-800">
-                        {p.hostedByValue}
-                      </dd>
-                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="line-clamp-2 text-[1.03rem] font-medium leading-tight tracking-[-0.01em] text-neutral-900">
+                        {project.projectName}
+                      </h2>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <dt className="text-neutral-500">Status</dt>
-                      <dd className={`text-right ${ui.statusTextClass}`}>
-                        {p.status}
-                      </dd>
-                    </div>
-                  </dl>
+                      <div className="mt-2 flex min-w-0 items-center gap-2 text-[13px] text-neutral-500">
+                        <span className="truncate">{hostedBy}</span>
+                        {companyMeta ? (
+                          <>
+                            <span className="text-neutral-300">·</span>
+                            <span className="truncate">{companyMeta}</span>
+                          </>
+                        ) : null}
+                      </div>
 
-                  <button
-                    type="button"
-                    disabled={p.status === "Closed"}
-                    className={[
-                      "mt-4 w-full rounded-lg border px-3 py-2 text-sm font-medium",
-                      "focus:outline-none focus:ring-2",
-                      ui.buttonClass,
-                      p.status === "Open" ? "cursor-pointer" : "cursor-default",
-                    ].join(" ")}
-                  >
-                    {ui.buttonText}
-                  </button>
-
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                    <div className="text-neutral-500">{p.noteLabel}</div>
-                    <div className="text-right text-neutral-600">
-                      {p.noteValue}
+                      <div className="mt-1 flex items-center gap-2 text-[12px] text-neutral-400">
+                        {relativeTime ? <span>{relativeTime}</span> : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );

@@ -1,7 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useForm, useWatch } from "react-hook-form";
 import { supabase } from "@/lib/supabaseInstance";
+
+import Image from "next/image";
+import { uploadAsset } from "@/services/upload/uploadAsset";
 
 type FormValues = {
   username: string;
@@ -31,7 +36,6 @@ export default function Participant() {
 
   const [authError, setAuthError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
-
   const [dragActive, setDragActive] = useState(false);
   const [avatarName, setAvatarName] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -44,11 +48,21 @@ export default function Participant() {
     handleSubmit,
     setValue,
     trigger,
+    setError,
+    clearErrors,
     control,
     formState: { errors, isValid, isSubmitting },
   } = useForm<FormValues>({
     mode: "onChange",
-    defaultValues: { avatar: null },
+    defaultValues: {
+      username: "",
+      email: "",
+      password: "",
+      retypePassword: "",
+      firstName: "",
+      lastName: "",
+      avatar: null,
+    },
   });
 
   const passwordValue = useWatch({
@@ -56,12 +70,18 @@ export default function Participant() {
     name: "password",
   });
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
+
   const avatarRegister = register("avatar", {
     validate: (files) => {
-      const f = files?.item?.(0);
-      if (!f) return true;
-      if (!f.type.startsWith("image/")) return "Only image files allowed";
-      if (f.size > 5 * 1024 * 1024) return "Max 5MB";
+      const file = files?.item?.(0);
+      if (!file) return true;
+      if (!file.type.startsWith("image/")) return "Only image files allowed";
+      if (file.size > 5 * 1024 * 1024) return "Max 5MB";
       return true;
     },
   });
@@ -70,11 +90,19 @@ export default function Participant() {
     const dt = new DataTransfer();
     dt.items.add(file);
 
-    setValue("avatar", dt.files, { shouldValidate: true, shouldDirty: true });
+    setValue("avatar", dt.files, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+
     await trigger("avatar");
 
-    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    setAvatarPreview(URL.createObjectURL(file));
+    setAvatarPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+
     setAvatarName(file.name);
   };
 
@@ -100,37 +128,16 @@ export default function Participant() {
     await setAvatarFromFile(file);
   };
 
-  const uploadAvatar = async (userId: string, file: File) => {
-    const r = await fetch("/api/r2/avatar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileType: file.type, userId }),
-    });
+  const checkUsernameTaken = async (username: string) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("username", username)
+      .maybeSingle();
 
-    if (!r.ok) {
-      const msg = await r.text().catch(() => "");
-      throw new Error(`Failed to create upload URL. ${msg}`);
-    }
+    if (error) throw new Error(error.message);
 
-    const { uploadUrl, key } = (await r.json()) as {
-      uploadUrl: string;
-      key: string;
-    };
-
-    const put = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": file.type,
-      },
-      body: file,
-    });
-
-    if (!put.ok) throw new Error("Avatar upload failed");
-
-    const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
-    if (!base) throw new Error("Missing NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
-
-    return `${base}/${key}`;
+    return !!data;
   };
 
   const upsertProfile = async (userId: string, base: ProfileBase) => {
@@ -139,6 +146,7 @@ export default function Participant() {
       const { error } = await supabase
         .from("profiles")
         .upsert(payload, { onConflict: "id" });
+
       if (error) throw new Error(error.message);
       return;
     }
@@ -147,11 +155,13 @@ export default function Participant() {
     const { error } = await supabase
       .from("profiles")
       .upsert(payload, { onConflict: "user_id" });
+
     if (error) throw new Error(error.message);
   };
 
   const onSubmit = async (values: FormValues) => {
     setAuthError(null);
+    clearErrors("username");
 
     const username = values.username.trim().toLowerCase();
     const email = values.email.trim();
@@ -159,45 +169,48 @@ export default function Participant() {
     const lastName = values.lastName.trim();
 
     setCheckingUsername(true);
-    setCheckingUsername(false);
-
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
-      {
-        email,
-        password: values.password,
-        options: {
-          data: {
-            username,
-            first_name: firstName,
-            last_name: lastName,
-            role: "participant",
-          },
-        },
-      },
-    );
-
-    if (signUpError) {
-      setAuthError(signUpError.message);
-      return;
-    }
-
-    if (!signUpData.session) {
-      router.replace("/welcome/introduction");
-      return;
-    }
-
-    const u = signUpData.user;
-    if (!u) {
-      setAuthError("Sign up succeeded but user was not returned.");
-      return;
-    }
-
-    const file = values.avatar?.item?.(0) ?? null;
 
     try {
-      const avatarUrl = file ? await uploadAvatar(u.id, file) : null;
+      const taken = await checkUsernameTaken(username);
 
-      await upsertProfile(u.id, {
+      if (taken) {
+        setError("username", {
+          type: "manual",
+          message: "This username is already taken",
+        });
+        return;
+      }
+
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email,
+          password: values.password,
+          options: {
+            data: {
+              username,
+              first_name: firstName,
+              last_name: lastName,
+              role: "participant",
+            },
+          },
+        });
+
+      if (signUpError) {
+        setAuthError(signUpError.message);
+        return;
+      }
+
+      const user = signUpData.user;
+
+      if (!user) {
+        setAuthError("Sign up succeeded but user was not returned.");
+        return;
+      }
+
+      const file = values.avatar?.item?.(0) ?? null;
+      const avatarUrl = file ? await uploadAsset(file, "profile-avatar") : null;
+
+      await upsertProfile(user.id, {
         username,
         first_name: firstName,
         last_name: lastName,
@@ -206,8 +219,12 @@ export default function Participant() {
       });
 
       router.replace("/welcome/introduction");
-    } catch (e) {
-      setAuthError(e instanceof Error ? e.message : "Something went wrong");
+    } catch (error) {
+      setAuthError(
+        error instanceof Error ? error.message : "Something went wrong",
+      );
+    } finally {
+      setCheckingUsername(false);
     }
   };
 
@@ -220,7 +237,11 @@ export default function Participant() {
             <input
               className="w-full rounded-lg border px-3 py-2"
               autoComplete="given-name"
-              {...register("firstName", { required: "First name is required" })}
+              {...register("firstName", {
+                required: "First name is required",
+                validate: (value) =>
+                  value.trim() ? true : "First name is required",
+              })}
             />
             {errors.firstName?.message ? (
               <p className="text-sm text-red-600">{errors.firstName.message}</p>
@@ -232,7 +253,11 @@ export default function Participant() {
             <input
               className="w-full rounded-lg border px-3 py-2"
               autoComplete="family-name"
-              {...register("lastName", { required: "Last name is required" })}
+              {...register("lastName", {
+                required: "Last name is required",
+                validate: (value) =>
+                  value.trim() ? true : "Last name is required",
+              })}
             />
             {errors.lastName?.message ? (
               <p className="text-sm text-red-600">{errors.lastName.message}</p>
@@ -249,8 +274,11 @@ export default function Participant() {
               required: "Username is required",
               minLength: { value: 2, message: "Too short" },
               maxLength: { value: 20, message: "Too long" },
-              validate: (v) =>
-                usernamePattern.test(v.trim()) || "Letters only (A–Z)",
+              validate: (value) => {
+                const trimmed = value.trim();
+                if (!trimmed) return "Username is required";
+                return usernamePattern.test(trimmed) || "Letters only (A-Z)";
+              },
             })}
           />
           {errors.username?.message ? (
@@ -264,7 +292,10 @@ export default function Participant() {
             className="w-full rounded-lg border px-3 py-2"
             type="email"
             autoComplete="email"
-            {...register("email", { required: "Email is required" })}
+            {...register("email", {
+              required: "Email is required",
+              validate: (value) => (value.trim() ? true : "Email is required"),
+            })}
           />
           {errors.email?.message ? (
             <p className="text-sm text-red-600">{errors.email.message}</p>
@@ -290,7 +321,6 @@ export default function Participant() {
           ) : null}
         </div>
 
-        {/* ✅ Retype Password (added right after Password) */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Retype password</label>
           <input
@@ -299,7 +329,8 @@ export default function Participant() {
             autoComplete="new-password"
             {...register("retypePassword", {
               required: "Please retype your password",
-              validate: (v) => v === passwordValue || "Passwords do not match",
+              validate: (value) =>
+                value === passwordValue || "Passwords do not match",
             })}
           />
           {errors.retypePassword?.message ? (
@@ -337,17 +368,18 @@ export default function Participant() {
             tabIndex={0}
             onClick={() => fileInputRef.current?.click()}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ")
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
                 fileInputRef.current?.click();
+              }
             }}
           >
             <div className="flex items-center gap-4">
               <div className="h-12.5 w-12.5 overflow-hidden rounded-full border">
                 {avatarPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={avatarPreview}
-                    alt=""
+                    alt="Avatar preview"
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -356,7 +388,7 @@ export default function Participant() {
               </div>
 
               {avatarName ? (
-                <p className="text-sm font-medium truncate">{avatarName}</p>
+                <p className="truncate text-sm font-medium">{avatarName}</p>
               ) : (
                 <>
                   <div className="flex-1">
@@ -410,7 +442,9 @@ export default function Participant() {
           disabled={!isValid || isSubmitting || checkingUsername}
           className="w-full rounded-xl bg-black px-4 py-3 text-white disabled:opacity-50 hover:cursor-pointer"
         >
-          {isSubmitting ? "Creating account..." : "Create account"}
+          {isSubmitting || checkingUsername
+            ? "Creating account..."
+            : "Create account"}
         </button>
       </form>
     </main>

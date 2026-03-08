@@ -9,9 +9,12 @@ import { supabase } from "@/lib/supabaseInstance";
 
 export type Role = "participant" | "client";
 
+const LOGIN_ROLE_STORAGE_KEY = "proof-login-role";
+
 export default function Login() {
   const router = useRouter();
   const [role, setRole] = useState<Role>("participant");
+  const [roleHydrated, setRoleHydrated] = useState(false);
 
   const roleHome = useMemo<Record<DbRole, string>>(
     () => ({
@@ -30,27 +33,61 @@ export default function Login() {
   };
 
   useEffect(() => {
+    const savedRole = sessionStorage.getItem(LOGIN_ROLE_STORAGE_KEY);
+
+    if (savedRole === "participant" || savedRole === "client") {
+      setRole(savedRole);
+    }
+
+    setRoleHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!roleHydrated) return;
+    sessionStorage.setItem(LOGIN_ROLE_STORAGE_KEY, role);
+  }, [role, roleHydrated]);
+
+  useEffect(() => {
     if (!router.isReady) return;
 
     const from = router.query.from;
     if (from === "signup") return;
 
+    let alive = true;
+
     const run = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) return;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!alive) return;
+      if (!session) return;
+
       await redirectByRole();
     };
 
     run();
+
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.isReady]);
+  }, [router.isReady, router.query.from]);
+
+  const handleSetRole = (nextRole: Role) => {
+    setRole(nextRole);
+  };
+
+  if (!roleHydrated) {
+    return <main className="min-h-[60vh]" />;
+  }
 
   return (
     <main>
       <div className="hidden md:block">
         <DesktopLogin
           role={role}
-          setRole={setRole}
+          setRole={handleSetRole}
           RoleTabs={RoleTabs}
           onLoginSuccess={redirectByRole}
         />

@@ -13,8 +13,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "assets.proofworks.ca",
       },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+      },
+      {
+        protocol: "https",
+        hostname: "*.r2.cloudflarestorage.com",
+      },
     ],
-    domains: ["images.unsplash.com"],
   },
 };
 
