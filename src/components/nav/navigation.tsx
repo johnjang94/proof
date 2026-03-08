@@ -55,7 +55,7 @@ export default function TopNav({ variant, authUser }: TopNavProps) {
   );
 
   return (
-    <div className="relative flex items-center gap-1.5 px-5">
+    <div className="relative flex items-center justify-between md:px- px-3">
       <div ref={menuRef} className="relative">
         {showHamburger && (
           <button

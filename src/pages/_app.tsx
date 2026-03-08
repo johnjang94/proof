@@ -49,7 +49,6 @@ export default function App({ Component, pageProps }: AppProps) {
   const authRoutes = ["/sign-up", "/welcome"];
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
   const isLoginRoute = pathname === "/login";
-  const isHomeRoute = pathname === "/";
   const hideNav = isLoginRoute || isAuthRoute;
 
   const isClientRoute =
@@ -76,7 +75,22 @@ export default function App({ Component, pageProps }: AppProps) {
     [],
   );
 
-  const guestAllowed = isHomeRoute || isLoginRoute || isAuthRoute;
+  const guestAllowedRoutes = [
+    "/",
+    "/login",
+    "/sign-up",
+    "/welcome",
+    "/category/shopping",
+    "/category/jobs",
+    "/category/chat",
+    "/main/participant/project",
+    "/projects/public",
+    "/project",
+  ];
+
+  const guestAllowed = guestAllowedRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
 
   useEffect(() => {
     let alive = true;

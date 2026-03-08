@@ -152,7 +152,7 @@ export default function ParticipantProjectDetailPage({
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f4f4f4] px-4 py-5 md:px-6">
+      <main className="min-h-screen py-5 md:px-6">
         <div className="mx-auto w-full max-w-6xl animate-pulse">
           <div className="mb-4 h-6 w-56 rounded bg-gray-200" />
           <div className="mb-4 h-70 w-full rounded-2xl bg-gray-200 md:h-105" />
@@ -168,7 +168,7 @@ export default function ParticipantProjectDetailPage({
 
   if (pageError || !project) {
     return (
-      <main className="min-h-screen bg-[#f4f4f4] px-4 py-8 md:px-6">
+      <main className="min-h-screen py-8 md:px-6">
         <div className="mx-auto max-w-4xl rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
           <p className="text-base font-medium text-red-600">
             {pageError || "Project not found."}
@@ -189,7 +189,7 @@ export default function ParticipantProjectDetailPage({
   return (
     <>
       <main className="min-h-screen py-5 text-[#111111]">
-        <div className="mx-auto px-12">
+        <div className="mx-auto md:px-12 px-5">
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm font-medium text-[#111111]">
             <span>DESIGN</span>
             <FiChevronRight className="text-[15px]" />
