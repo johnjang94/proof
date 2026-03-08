@@ -58,14 +58,13 @@ export default function Profile() {
 
   return (
     <main className="min-h-screen bg-zinc-50 pb-24 lg:pb-10">
-      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-6 lg:py-10">
+      <div className="mx-auto w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-6 lg:py-10">
         <div className="space-y-4 lg:hidden">
           <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm text-zinc-500">Account</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">
-                  My Profile
+                <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
+                  My Account
                 </h1>
                 <p className="mt-2 text-sm text-zinc-500">
                   Manage your account, profile, and activity
@@ -201,12 +200,7 @@ export default function Profile() {
         <div className="hidden gap-8 lg:flex">
           <aside className="w-72 shrink-0">
             <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <div className="text-sm text-zinc-500">Account</div>
-              <div className="mt-1 text-3xl font-semibold tracking-tight text-zinc-950">
-                Profile
-              </div>
-
-              <nav className="mt-6 space-y-2">
+              <nav className="space-y-2">
                 {menuItems.map((item) => {
                   const active = activeSection === item.key;
 
