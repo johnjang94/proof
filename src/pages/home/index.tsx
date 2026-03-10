@@ -16,7 +16,7 @@ type ProjectItem = {
   mp4Url: string | null;
   createdAt?: string;
   status?: string;
-  client?: {
+  clientUser?: {
     companyName?: string | null;
     avatarUrl?: string | null;
     companyLogoUrl?: string | null;
@@ -26,10 +26,10 @@ type ProjectItem = {
 };
 
 function getHostedBy(project: ProjectItem) {
-  const companyName = project.client?.companyName?.trim();
+  const companyName = project.clientUser?.companyName?.trim();
   if (companyName) return companyName;
 
-  const fullName = [project.client?.firstName, project.client?.lastName]
+  const fullName = [project.clientUser?.firstName, project.clientUser?.lastName]
     .filter(Boolean)
     .join(" ")
     .trim();
@@ -138,7 +138,7 @@ export default function Home() {
       }
     };
 
-    loadPublicProjects();
+    void loadPublicProjects();
   }, []);
 
   const visiblePublicProjects = useMemo(
@@ -147,7 +147,7 @@ export default function Home() {
   );
 
   const goToProjectDetail = (projectId: string) => {
-    router.push(`/main/participant/project/${projectId}`);
+    void router.push(`/main/participant/project/${projectId}`);
   };
 
   return (
@@ -203,10 +203,10 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-start gap-3 px-1">
-                    {project.client?.companyLogoUrl ? (
+                    {project.clientUser?.companyLogoUrl ? (
                       <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-neutral-200 bg-white">
                         <Image
-                          src={project.client.companyLogoUrl}
+                          src={project.clientUser?.companyLogoUrl}
                           alt={`${hostedBy} logo`}
                           fill
                           sizes="36px"
@@ -214,10 +214,10 @@ export default function Home() {
                           unoptimized
                         />
                       </div>
-                    ) : project.client?.avatarUrl ? (
+                    ) : project.clientUser?.avatarUrl ? (
                       <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
                         <Image
-                          src={project.client.avatarUrl}
+                          src={project.clientUser?.avatarUrl}
                           alt={`${hostedBy} avatar`}
                           fill
                           sizes="36px"

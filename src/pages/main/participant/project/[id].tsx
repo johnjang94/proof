@@ -289,7 +289,7 @@ export default function ParticipantProjectDetailPage({
               <button
                 type="button"
                 onClick={() => setShowLoginModal(false)}
-                className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700"
+                className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 hover:cursor-pointer"
               >
                 <FiX className="text-[18px]" />
               </button>
@@ -299,7 +299,7 @@ export default function ParticipantProjectDetailPage({
               <button
                 type="button"
                 onClick={() => router.push("/login")}
-                className="rounded-xl bg-black w-full py-3 text-sm font-medium text-white transition hover:opacity-90"
+                className="rounded-xl bg-black w-full py-3 text-sm font-medium text-white transition hover:opacity-90 hover:cursor-pointer"
               >
                 Log in
               </button>
@@ -308,7 +308,7 @@ export default function ParticipantProjectDetailPage({
             <button
               type="button"
               onClick={() => setShowLoginModal(false)}
-              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-medium text-neutral-500 transition hover:bg-neutral-100"
+              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-medium text-neutral-500 transition hover:bg-neutral-100 hover:cursor-pointer"
             >
               Cancel
             </button>

@@ -26,19 +26,20 @@ type ProjectItem = {
   mp4Url: string | null;
   createdAt?: string;
   status?: string;
-  client?: {
+  clientUser?: {
     companyName?: string | null;
     avatarUrl?: string | null;
+    companyLogoUrl?: string | null;
     firstName?: string | null;
     lastName?: string | null;
   } | null;
 };
 
 function getHostedBy(project: ProjectItem) {
-  const companyName = project.client?.companyName?.trim();
+  const companyName = project.clientUser?.companyName?.trim();
   if (companyName) return companyName;
 
-  const fullName = [project.client?.firstName, project.client?.lastName]
+  const fullName = [project.clientUser?.firstName, project.clientUser?.lastName]
     .filter(Boolean)
     .join(" ")
     .trim();
@@ -128,10 +129,21 @@ function ProjectCard({
       </div>
 
       <div className="flex items-start gap-3 px-1">
-        {project.client?.avatarUrl ? (
+        {project.clientUser?.companyLogoUrl ? (
+          <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-neutral-200 bg-white">
+            <Image
+              src={project.clientUser?.companyLogoUrl}
+              alt={`${hostedBy} logo`}
+              fill
+              sizes="36px"
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+        ) : project.clientUser?.avatarUrl ? (
           <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
             <Image
-              src={project.client.avatarUrl}
+              src={project.clientUser?.avatarUrl}
               alt={`${hostedBy} avatar`}
               fill
               sizes="36px"
@@ -169,7 +181,7 @@ function ProjectCard({
   );
 }
 
-export default function Home({ authUser, role }: Props) {
+export default function Home({ role }: Props) {
   const router = useRouter();
 
   const [publicProjects, setPublicProjects] = useState<ProjectItem[]>([]);
