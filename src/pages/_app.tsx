@@ -219,7 +219,11 @@ export default function App({ Component, pageProps }: AppProps) {
       )}
 
       <main className="pb-5 lg:px-5 lg:pb-0">
-        {shouldBlockPage ? <PageShell /> : <Component {...pageProps} />}
+        {shouldBlockPage ? (
+          <PageShell />
+        ) : (
+          <Component {...pageProps} authUser={authUser} role={role} />
+        )}
       </main>
     </>
   );

@@ -63,11 +63,14 @@ export default function DesktopLogin({
 
   const router = useRouter();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showRoleErrorModal, setShowRoleErrorModal] = useState(false);
+
+  const showRoleErrorLink = router.query.error === "unregistered";
 
   const onSubmit = async (values: { email: string; password: string }) => {
     setAuthError(null);
 
-    const { error } = await supabase.auth.signInWithPassword(values);
+    const { error, data } = await supabase.auth.signInWithPassword(values);
 
     if (error) {
       setAuthError(error.message);
@@ -80,6 +83,18 @@ export default function DesktopLogin({
       setAuthError(
         "Login succeeded, but session sync was delayed. Please try again.",
       );
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (!profile || profile.role !== role) {
+      await supabase.auth.signOut();
+      window.location.href = "/login?error=unregistered";
       return;
     }
 
@@ -99,6 +114,27 @@ export default function DesktopLogin({
 
   return (
     <div className="mx-auto my-20 flex">
+      {showRoleErrorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
+            <h2 className="mb-3 text-lg font-semibold text-gray-900">
+              Account mismatch
+            </h2>
+            <p className="mb-6 text-sm text-gray-600">
+              Your account credentials do not match the selected login type.
+              Please make sure you are logging in from the correct tab.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowRoleErrorModal(false)}
+              className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="flex w-1/2 items-center justify-center">
         <Link href="/">
           <Image
@@ -166,7 +202,17 @@ export default function DesktopLogin({
               {isSubmitting ? "Logging in..." : "Login"}
             </button>
 
-            <a className="text-sm text-blue-600" href="#">
+            {showRoleErrorLink && (
+              <button
+                type="button"
+                onClick={() => setShowRoleErrorModal(true)}
+                className="mb-3 block text-sm text-red-500 underline hover:text-red-600"
+              >
+                Check why you are back here
+              </button>
+            )}
+
+            <a className="block text-sm text-blue-600" href="#">
               Forgot your password?
             </a>
 

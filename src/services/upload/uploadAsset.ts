@@ -12,7 +12,7 @@ type PresignResponse = {
 
 export async function uploadAsset(
   file: File,
-  kind: "profile-avatar" | "project-thumbnail" | "project-mp4",
+  kind: "profile-avatar" | "project-thumbnail" | "project-mp4" | "company-logo",
 ) {
   const presignRes = await apiFetch("/uploads/presign", {
     method: "POST",

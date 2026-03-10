@@ -72,7 +72,7 @@ export default function Main() {
           setFirstName(profileData.first_name);
         }
 
-        const res = await apiFetch("/my/project-intakes", {
+        const res = await apiFetch("/project-intakes", {
           method: "GET",
         });
 
@@ -82,9 +82,9 @@ export default function Main() {
         }
 
         const json = await res.json();
-        const nextProjects: ProjectCard[] = Array.isArray(json?.items)
-          ? json.items
-          : [];
+        console.log("project-intakes response:", json);
+
+        const nextProjects: ProjectCard[] = Array.isArray(json) ? json : [];
 
         setProjects(nextProjects);
       } catch (error) {
@@ -118,7 +118,7 @@ export default function Main() {
 
           <button
             onClick={() => router.push("/project/client/project-setup")}
-            className="flex items-center gap-2 rounded-lg bg-gray-200 px-6 py-3 text-base text-gray-800 hover:bg-gray-300"
+            className="flex items-center gap-2 rounded-lg bg-gray-200 px-6 py-3 text-base text-gray-800 hover:bg-gray-300 hover:cursor-pointer"
           >
             <FiPlus size={20} />
             New Project
@@ -158,7 +158,7 @@ export default function Main() {
 
               <button
                 onClick={() => router.push("/project/client/project-setup")}
-                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-sky-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-600"
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-sky-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-600 hover:cursor-pointer"
               >
                 <FiPlus size={18} />
                 Create First Project
@@ -199,7 +199,7 @@ export default function Main() {
                             <h3 className="text-[22px] font-medium">
                               {project.projectName}
                             </h3>
-                            <p className="text-sm text-gray-700 mt-1">
+                            <p className="mt-1 text-sm text-gray-700">
                               {project.timeInvestment} · {project.budgetRange}
                             </p>
                           </div>
@@ -208,7 +208,7 @@ export default function Main() {
                             onClick={() =>
                               router.push(`/project/client/${project.id}`)
                             }
-                            className="rounded-md bg-gray-100 px-4 py-2 text-sm hover:bg-gray-200"
+                            className="rounded-md bg-gray-100 px-4 py-2 text-sm hover:bg-gray-200 hover:cursor-pointer"
                           >
                             View more
                           </button>

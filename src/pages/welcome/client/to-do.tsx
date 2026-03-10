@@ -1,38 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import { useRequireSession } from "@/lib/auth/useRequireSession";
+import WelcomeToDo from "@/components/welcome/welcome-todo";
 
 export default function ToDo() {
-  const router = useRouter();
-
   const ok = useRequireSession("/login?role=client");
   const [visible, setVisible] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const navTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!ok) return;
-
     const t = window.setTimeout(() => setVisible(true), 50);
     return () => window.clearTimeout(t);
   }, [ok]);
-
-  useEffect(() => {
-    return () => {
-      if (navTimerRef.current) window.clearTimeout(navTimerRef.current);
-    };
-  }, []);
-
-  const goNext = () => {
-    if (leaving) return;
-    setLeaving(true);
-
-    navTimerRef.current = window.setTimeout(() => {
-      router.push("/welcome/client/set-up");
-    }, 450);
-  };
 
   if (!ok) return null;
 
@@ -40,7 +20,7 @@ export default function ToDo() {
     <div
       className={[
         "relative min-h-[85vh] transition-opacity duration-500 ease-in-out",
-        visible && !leaving ? "opacity-100" : "opacity-0",
+        visible ? "opacity-100" : "opacity-0",
       ].join(" ")}
     >
       <div className="absolute left-1/2 top-6 -translate-x-1/2">
@@ -54,7 +34,7 @@ export default function ToDo() {
           Welcome ACME Corp.,
         </h1>
         <p className="mt-2 text-lg text-neutral-700">
-          Let’s get started on a project
+          Let&#39;s get started on a project
         </p>
 
         <div className="mt-20 flex justify-center">
@@ -71,20 +51,7 @@ export default function ToDo() {
         </div>
       </main>
 
-      <div className="text-center my-10">
-        <button
-          className={[
-            "w-4/6 py-1 rounded-xl text-white transition",
-            leaving
-              ? "bg-blue-300/60 cursor-not-allowed"
-              : "bg-blue-300 hover:bg-blue-700 hover:cursor-pointer",
-          ].join(" ")}
-          onClick={goNext}
-          disabled={leaving}
-        >
-          {leaving ? "Moving..." : "Next"}
-        </button>
-      </div>
+      <WelcomeToDo nextPath="/welcome/client/set-up" />
     </div>
   );
 }
