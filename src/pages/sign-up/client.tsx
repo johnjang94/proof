@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { useForm, useWatch } from "react-hook-form";
 import Image from "next/image";
 import { uploadAsset } from "@/services/upload/uploadAsset";
+import { apiFetch } from "@/lib/apiFetch";
 
 type FormValues = {
   username: string;
@@ -17,6 +18,7 @@ type FormValues = {
   lastName: string;
   companyName: string;
   avatar: FileList | null;
+  companyLogo: FileList | null;
 };
 
 type ProfileBase = {
@@ -41,8 +43,14 @@ export default function Client() {
   const [dragActive, setDragActive] = useState(false);
   const [avatarName, setAvatarName] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [companyLogoDragActive, setCompanyLogoDragActive] = useState(false);
+  const [companyLogoName, setCompanyLogoName] = useState<string | null>(null);
+  const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(
+    null,
+  );
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const companyLogoInputRef = useRef<HTMLInputElement | null>(null);
   const usernamePattern = useMemo(() => /^[A-Za-z]+$/, []);
 
   const {
@@ -65,6 +73,7 @@ export default function Client() {
       lastName: "",
       companyName: "",
       avatar: null,
+      companyLogo: null,
     },
   });
 
@@ -73,10 +82,21 @@ export default function Client() {
   useEffect(() => {
     return () => {
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      if (companyLogoPreview) URL.revokeObjectURL(companyLogoPreview);
     };
-  }, [avatarPreview]);
+  }, [avatarPreview, companyLogoPreview]);
 
   const avatarRegister = register("avatar", {
+    validate: (files) => {
+      const file = files?.item?.(0);
+      if (!file) return true;
+      if (!file.type.startsWith("image/")) return "Only image files allowed";
+      if (file.size > 5 * 1024 * 1024) return "Max 5MB";
+      return true;
+    },
+  });
+
+  const companyLogoRegister = register("companyLogo", {
     validate: (files) => {
       const file = files?.item?.(0);
       if (!file) return true;
@@ -89,44 +109,71 @@ export default function Client() {
   const setAvatarFromFile = async (file: File) => {
     const dt = new DataTransfer();
     dt.items.add(file);
-
     setValue("avatar", dt.files, {
       shouldValidate: true,
       shouldDirty: true,
       shouldTouch: true,
     });
-
     await trigger("avatar");
-
     setAvatarPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
     });
-
     setAvatarName(file.name);
+  };
+
+  const setCompanyLogoFromFile = async (file: File) => {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    setValue("companyLogo", dt.files, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    await trigger("companyLogo");
+    setCompanyLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    setCompanyLogoName(file.name);
   };
 
   const onDrop: React.DragEventHandler<HTMLDivElement> = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-
+    if (!file || !file.type.startsWith("image/")) return;
     await setAvatarFromFile(file);
+  };
+
+  const onCompanyLogoDrop: React.DragEventHandler<HTMLDivElement> = async (
+    e,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCompanyLogoDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    await setCompanyLogoFromFile(file);
   };
 
   const onBrowsePick: React.ChangeEventHandler<HTMLInputElement> = async (
     e,
   ) => {
     avatarRegister.onChange(e);
-
     const file = e.target.files?.[0];
     if (!file) return;
-
     await setAvatarFromFile(file);
+  };
+
+  const onCompanyLogoPick: React.ChangeEventHandler<HTMLInputElement> = async (
+    e,
+  ) => {
+    companyLogoRegister.onChange(e);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await setCompanyLogoFromFile(file);
   };
 
   const checkUsernameTaken = async (username: string) => {
@@ -135,32 +182,23 @@ export default function Client() {
       .select("username")
       .eq("username", username)
       .maybeSingle();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
+    if (error) throw new Error(error.message);
     return !!data;
   };
 
   const upsertProfile = async (userId: string, base: ProfileBase) => {
     if (PROFILE_ID_COL === "id") {
       const payload: ProfileById = { id: userId, ...base };
-
       const { error } = await supabase
         .from("profiles")
         .upsert(payload, { onConflict: "id" });
-
       if (error) throw new Error(error.message);
       return;
     }
-
     const payload: ProfileByUserId = { user_id: userId, ...base };
-
     const { error } = await supabase
       .from("profiles")
       .upsert(payload, { onConflict: "user_id" });
-
     if (error) throw new Error(error.message);
   };
 
@@ -178,7 +216,6 @@ export default function Client() {
 
     try {
       const taken = await checkUsernameTaken(username);
-
       if (taken) {
         setError("username", {
           type: "manual",
@@ -208,14 +245,20 @@ export default function Client() {
       }
 
       const user = signUpData.user;
-
       if (!user) {
         setAuthError("Sign up succeeded but user was not returned.");
         return;
       }
 
-      const file = values.avatar?.item?.(0) ?? null;
-      const avatarUrl = file ? await uploadAsset(file, "profile-avatar") : null;
+      const avatarFile = values.avatar?.item?.(0) ?? null;
+      const avatarUrl = avatarFile
+        ? await uploadAsset(avatarFile, "profile-avatar")
+        : null;
+
+      const companyLogoFile = values.companyLogo?.item?.(0) ?? null;
+      const companyLogoUrl = companyLogoFile
+        ? await uploadAsset(companyLogoFile, "company-logo")
+        : null;
 
       await upsertProfile(user.id, {
         username,
@@ -224,6 +267,17 @@ export default function Client() {
         company_name: companyName,
         role: "client",
         avatar_url: avatarUrl,
+      });
+
+      await apiFetch("/auth/sync", {
+        method: "POST",
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          companyName,
+          avatarUrl,
+          companyLogoUrl,
+        }),
       });
 
       router.replace("/main/client/landing");
@@ -249,109 +303,7 @@ export default function Client() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              Username
-            </label>
-            <input
-              type="text"
-              autoComplete="username"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="Enter username"
-              {...register("username", {
-                required: "Username is required",
-                validate: (value) => {
-                  const trimmed = value.trim();
-                  if (!trimmed) return "Username is required";
-                  if (!usernamePattern.test(trimmed)) {
-                    return "Username must contain letters only";
-                  }
-                  if (trimmed.length < 2) return "Minimum 2 characters";
-                  if (trimmed.length > 30) return "Maximum 30 characters";
-                  return true;
-                },
-              })}
-            />
-            {errors.username && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.username.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              Email
-            </label>
-            <input
-              type="email"
-              autoComplete="email"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="Enter email"
-              {...register("email", {
-                required: "Email is required",
-                validate: (value) => {
-                  if (!value.trim()) return "Email is required";
-                  return true;
-                },
-              })}
-            />
-            {errors.email && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              Password
-            </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="Enter password"
-              {...register("password", {
-                required: "Password is required",
-                minLength: {
-                  value: 8,
-                  message: "Minimum 8 characters",
-                },
-                onChange: async () => {
-                  await trigger("retypePassword");
-                },
-              })}
-            />
-            {errors.password && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              Retype Password
-            </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="Retype password"
-              {...register("retypePassword", {
-                required: "Please retype your password",
-                validate: (value) =>
-                  value === passwordValue || "Passwords do not match",
-              })}
-            />
-            {errors.retypePassword && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.retypePassword.message}
-              </p>
-            )}
-          </div>
-
+          {/* 1. First Name */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               First Name
@@ -376,6 +328,7 @@ export default function Client() {
             )}
           </div>
 
+          {/* 2. Last Name */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Last Name
@@ -400,6 +353,182 @@ export default function Client() {
             )}
           </div>
 
+          {/* 3. Username */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-800">
+              Username
+            </label>
+            <input
+              type="text"
+              autoComplete="username"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
+              placeholder="Enter username"
+              {...register("username", {
+                required: "Username is required",
+                validate: (value) => {
+                  const trimmed = value.trim();
+                  if (!trimmed) return "Username is required";
+                  if (!usernamePattern.test(trimmed))
+                    return "Username must contain letters only";
+                  if (trimmed.length < 2) return "Minimum 2 characters";
+                  if (trimmed.length > 30) return "Maximum 30 characters";
+                  return true;
+                },
+              })}
+            />
+            {errors.username && (
+              <p className="mt-2 text-sm text-red-600">
+                {errors.username.message}
+              </p>
+            )}
+          </div>
+
+          {/* 4. Email */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-800">
+              Email
+            </label>
+            <input
+              type="email"
+              autoComplete="email"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
+              placeholder="Enter email"
+              {...register("email", {
+                required: "Email is required",
+                validate: (value) => {
+                  if (!value.trim()) return "Email is required";
+                  return true;
+                },
+              })}
+            />
+            {errors.email && (
+              <p className="mt-2 text-sm text-red-600">
+                {errors.email.message}
+              </p>
+            )}
+          </div>
+
+          {/* 5. Password */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-800">
+              Password
+            </label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
+              placeholder="Enter password"
+              {...register("password", {
+                required: "Password is required",
+                minLength: { value: 8, message: "Minimum 8 characters" },
+                onChange: async () => {
+                  await trigger("retypePassword");
+                },
+              })}
+            />
+            {errors.password && (
+              <p className="mt-2 text-sm text-red-600">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {/* 6. Retype Password */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-800">
+              Retype Password
+            </label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
+              placeholder="Retype password"
+              {...register("retypePassword", {
+                required: "Please retype your password",
+                validate: (value) =>
+                  value === passwordValue || "Passwords do not match",
+              })}
+            />
+            {errors.retypePassword && (
+              <p className="mt-2 text-sm text-red-600">
+                {errors.retypePassword.message}
+              </p>
+            )}
+          </div>
+
+          {/* 7. Profile Image */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-800">
+              Profile Image
+            </label>
+            <input
+              ref={(el) => {
+                avatarRegister.ref(el);
+                fileInputRef.current = el;
+              }}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              name={avatarRegister.name}
+              onBlur={avatarRegister.onBlur}
+              onChange={onBrowsePick}
+            />
+            <div
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(false);
+              }}
+              onDrop={onDrop}
+              className={`rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${dragActive ? "border-black bg-gray-50" : "border-gray-300 bg-white"}`}
+            >
+              {avatarPreview ? (
+                <div className="flex flex-col items-center gap-3">
+                  <Image
+                    src={avatarPreview}
+                    alt="Avatar preview"
+                    width={96}
+                    height={96}
+                    className="rounded-full object-cover"
+                  />
+                  <p className="text-sm text-gray-700">{avatarName}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-800">
+                    Drag and drop an image here
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, WEBP up to 5MB
+                  </p>
+                </div>
+              )}
+              <button
+                type="button"
+                className="mt-4 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Browse file
+              </button>
+            </div>
+            {errors.avatar && (
+              <p className="mt-2 text-sm text-red-600">
+                {errors.avatar.message}
+              </p>
+            )}
+          </div>
+
+          {/* 8. Company Name */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Company Name
@@ -424,79 +553,74 @@ export default function Client() {
             )}
           </div>
 
+          {/* 9. Company Logo */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
-              Profile Image
+              Company Logo
             </label>
-
             <input
               ref={(el) => {
-                avatarRegister.ref(el);
-                fileInputRef.current = el;
+                companyLogoRegister.ref(el);
+                companyLogoInputRef.current = el;
               }}
               type="file"
               accept="image/*"
               className="hidden"
-              name={avatarRegister.name}
-              onBlur={avatarRegister.onBlur}
-              onChange={onBrowsePick}
+              name={companyLogoRegister.name}
+              onBlur={companyLogoRegister.onBlur}
+              onChange={onCompanyLogoPick}
             />
-
             <div
               onDragEnter={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragActive(true);
+                setCompanyLogoDragActive(true);
               }}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragActive(true);
+                setCompanyLogoDragActive(true);
               }}
               onDragLeave={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragActive(false);
+                setCompanyLogoDragActive(false);
               }}
-              onDrop={onDrop}
-              className={`rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
-                dragActive
-                  ? "border-black bg-gray-50"
-                  : "border-gray-300 bg-white"
-              }`}
+              onDrop={onCompanyLogoDrop}
+              className={`rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${companyLogoDragActive ? "border-black bg-gray-50" : "border-gray-300 bg-white"}`}
             >
-              {avatarPreview ? (
+              {companyLogoPreview ? (
                 <div className="flex flex-col items-center gap-3">
                   <Image
-                    src={avatarPreview}
-                    alt="Avatar preview"
-                    className="h-24 w-24 rounded-full object-cover"
+                    src={companyLogoPreview}
+                    alt="Company logo preview"
+                    width={96}
+                    height={96}
+                    className="rounded-xl object-cover"
                   />
-                  <p className="text-sm text-gray-700">{avatarName}</p>
+                  <p className="text-sm text-gray-700">{companyLogoName}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-800">
-                    Drag and drop an image here
+                    Drag and drop your company logo here
                   </p>
                   <p className="text-xs text-gray-500">
                     PNG, JPG, WEBP up to 5MB
                   </p>
                 </div>
               )}
-
               <button
                 type="button"
                 className="mt-4 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => companyLogoInputRef.current?.click()}
               >
                 Browse file
               </button>
             </div>
-
-            {errors.avatar && (
+            {errors.companyLogo && (
               <p className="mt-2 text-sm text-red-600">
-                {errors.avatar.message}
+                {errors.companyLogo.message}
               </p>
             )}
           </div>
@@ -510,7 +634,7 @@ export default function Client() {
           <button
             type="submit"
             disabled={!isValid || isSubmitting || checkingUsername}
-            className="w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:cursor-pointer"
           >
             {isSubmitting || checkingUsername
               ? "Creating account..."

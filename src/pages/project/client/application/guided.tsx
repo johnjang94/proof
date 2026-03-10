@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import { supabase } from "@/lib/supabaseInstance";
 import { apiFetch } from "@/lib/apiFetch";
 import { uploadAsset } from "@/services/upload/uploadAsset";
-import type { UploadKind } from "@/services/upload/types";
+import Image from "next/image";
 
 type FormState = {
   projectName: string;
@@ -15,11 +15,12 @@ type FormState = {
   goals: string;
 };
 
-type UploadState = {
-  file?: File;
-  url?: string;
+type FileState = {
+  file: File | null;
+  preview: string | null;
   uploading: boolean;
-  error?: string;
+  url: string | null;
+  error: string | null;
 };
 
 const EMPTY_FORM: FormState = {
@@ -30,8 +31,12 @@ const EMPTY_FORM: FormState = {
   goals: "",
 };
 
-const EMPTY_UPLOAD: UploadState = {
+const EMPTY_FILE: FileState = {
+  file: null,
+  preview: null,
   uploading: false,
+  url: null,
+  error: null,
 };
 
 export default function ProjectIntake() {
@@ -41,9 +46,12 @@ export default function ProjectIntake() {
   const thumbInputRef = useRef<HTMLInputElement | null>(null);
   const mp4InputRef = useRef<HTMLInputElement | null>(null);
 
+  const thumbUrlRef = useRef<string | null>(null);
+  const mp4UrlRef = useRef<string | null>(null);
+
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [thumb, setThumb] = useState<UploadState>(EMPTY_UPLOAD);
-  const [mp4, setMp4] = useState<UploadState>(EMPTY_UPLOAD);
+  const [thumb, setThumb] = useState<FileState>(EMPTY_FILE);
+  const [mp4, setMp4] = useState<FileState>(EMPTY_FILE);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = useMemo(() => {
@@ -54,11 +62,14 @@ export default function ProjectIntake() {
       form.projectDescription.trim() &&
       form.goals.trim();
 
-    const uploadsOk = !thumb.uploading && !mp4.uploading;
-    const thumbReady = !!thumb.url;
-
-    return !!requiredText && uploadsOk && thumbReady && !submitting;
-  }, [form, thumb, mp4, submitting]);
+    return (
+      !!requiredText &&
+      !!thumb.file &&
+      !thumb.uploading &&
+      !mp4.uploading &&
+      !submitting
+    );
+  }, [form, thumb, mp4.uploading, submitting]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -69,78 +80,68 @@ export default function ProjectIntake() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const uploadPickedFile = async (
-    file: File | undefined,
-    kind: UploadKind,
-    setState: React.Dispatch<React.SetStateAction<UploadState>>,
-    fallbackMessage: string,
+  const startUpload = async (
+    file: File,
+    kind: "project-thumbnail" | "project-mp4",
+    setState: React.Dispatch<React.SetStateAction<FileState>>,
+    urlRef: React.MutableRefObject<string | null>,
   ) => {
-    if (!file) return;
-
-    setState({
-      file,
-      uploading: true,
-      error: undefined,
-      url: undefined,
-    });
+    setState((prev) => ({ ...prev, uploading: true, url: null, error: null }));
+    urlRef.current = null;
 
     try {
       const url = await uploadAsset(file, kind);
-      setState({
-        file,
-        url,
-        uploading: false,
-        error: undefined,
-      });
+      urlRef.current = url;
+      setState((prev) => ({ ...prev, uploading: false, url }));
     } catch (error) {
-      setState({
-        file,
+      setState((prev) => ({
+        ...prev,
         uploading: false,
-        url: undefined,
-        error: error instanceof Error ? error.message : fallbackMessage,
-      });
+        error: error instanceof Error ? error.message : "Upload failed.",
+      }));
     }
   };
 
-  const onPickThumbnail = async (file?: File) => {
-    await uploadPickedFile(
-      file,
-      "project-thumbnail",
-      setThumb,
-      "Thumbnail upload failed.",
-    );
+  const onPickThumbnail = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setThumb({ ...EMPTY_FILE, error: "Only image files allowed." });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setThumb({ ...EMPTY_FILE, error: "Max 10MB." });
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setThumb({ file, preview, uploading: false, url: null, error: null });
+    startUpload(file, "project-thumbnail", setThumb, thumbUrlRef);
   };
 
-  const onPickMp4 = async (file?: File) => {
-    await uploadPickedFile(file, "project-mp4", setMp4, "MP4 upload failed.");
+  const onPickMp4 = (file?: File) => {
+    if (!file) return;
+    if (file.type !== "video/mp4") {
+      setMp4({ ...EMPTY_FILE, error: "Only MP4 files allowed." });
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      setMp4({ ...EMPTY_FILE, error: "Max 100MB." });
+      return;
+    }
+    setMp4({ file, preview: null, uploading: false, url: null, error: null });
+    startUpload(file, "project-mp4", setMp4, mp4UrlRef);
   };
 
   const removeThumbnail = () => {
-    setThumb(EMPTY_UPLOAD);
-    if (thumbInputRef.current) {
-      thumbInputRef.current.value = "";
-    }
+    if (thumb.preview) URL.revokeObjectURL(thumb.preview);
+    thumbUrlRef.current = null;
+    setThumb(EMPTY_FILE);
+    if (thumbInputRef.current) thumbInputRef.current.value = "";
   };
 
   const removeMp4 = () => {
-    setMp4(EMPTY_UPLOAD);
-    if (mp4InputRef.current) {
-      mp4InputRef.current.value = "";
-    }
-  };
-
-  const resetForm = () => {
-    setForm(EMPTY_FORM);
-    setThumb(EMPTY_UPLOAD);
-    setMp4(EMPTY_UPLOAD);
-
-    if (thumbInputRef.current) {
-      thumbInputRef.current.value = "";
-    }
-
-    if (mp4InputRef.current) {
-      mp4InputRef.current.value = "";
-    }
+    mp4UrlRef.current = null;
+    setMp4(EMPTY_FILE);
+    if (mp4InputRef.current) mp4InputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -153,7 +154,6 @@ export default function ProjectIntake() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
       const userId = user?.id;
 
       if (!userId) {
@@ -161,17 +161,23 @@ export default function ProjectIntake() {
         return;
       }
 
-      const res = await apiFetch("/my/project-intakes", {
+      const thumbnailUrl =
+        thumbUrlRef.current ??
+        (await uploadAsset(thumb.file!, "project-thumbnail"));
+      const mp4Url = mp4.file
+        ? (mp4UrlRef.current ?? (await uploadAsset(mp4.file, "project-mp4")))
+        : null;
+
+      const res = await apiFetch("/project-intakes", {
         method: "POST",
         body: JSON.stringify({
-          clientUserId: userId,
           projectName: form.projectName.trim(),
           timeInvestment: form.timeInvestment.trim(),
           budgetRange: form.budgetRange.trim(),
           projectDescription: form.projectDescription.trim(),
           goals: form.goals.trim(),
-          thumbnailUrl: thumb.url,
-          mp4Url: mp4.url ?? null,
+          thumbnailUrl,
+          mp4Url,
         }),
       });
 
@@ -180,11 +186,8 @@ export default function ProjectIntake() {
         throw new Error(`Submit failed (${res.status}). ${text}`);
       }
 
-      const result = await res.json();
-      console.log("INTAKE RESULT:", result);
-
-      resetForm();
-      await router.push("/client/landing?created=1");
+      if (thumb.preview) URL.revokeObjectURL(thumb.preview);
+      await router.push("/main/client/landing?created=1");
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : "Submission failed.");
@@ -216,6 +219,218 @@ export default function ProjectIntake() {
               </div>
 
               <div className="mt-6 space-y-5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-sm font-medium text-gray-900">
+                      Project Thumbnail
+                    </label>
+                    <span className="rounded bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                      required
+                    </span>
+                  </div>
+
+                  <div
+                    onClick={() =>
+                      !thumb.uploading && thumbInputRef.current?.click()
+                    }
+                    className={`mt-2 relative flex cursor-pointer flex-col items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100 ${thumb.uploading ? "cursor-not-allowed" : ""}`}
+                  >
+                    {thumb.uploading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-white/80 z-10">
+                        <svg
+                          className="h-8 w-8 animate-spin text-sky-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        <p className="mt-2 text-sm font-medium text-sky-600">
+                          Uploading...
+                        </p>
+                      </div>
+                    )}
+
+                    {thumb.preview ? (
+                      <Image
+                        src={thumb.preview}
+                        alt="thumbnail preview"
+                        width={128}
+                        height={128}
+                        className="mb-3 rounded-md object-cover"
+                      />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-10 w-10 text-gray-700"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 16V4" />
+                        <path d="M7 9l5-5 5 5" />
+                        <path d="M20 16v4H4v-4" />
+                      </svg>
+                    )}
+                    <div className="mt-3 text-sm font-medium text-gray-800">
+                      {thumb.uploading
+                        ? "Uploading..."
+                        : thumb.file
+                          ? thumb.file.name
+                          : "Drag & Drop your photo here"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {thumb.url
+                        ? "Uploaded ✅"
+                        : thumb.uploading
+                          ? "Please wait..."
+                          : "…or click here to browse"}
+                    </div>
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      supported file types: .jpg, .png, .webp
+                    </div>
+                    {thumb.error ? (
+                      <div className="mt-2 text-xs text-red-600">
+                        {thumb.error}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <input
+                    ref={thumbInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => onPickThumbnail(e.target.files?.[0])}
+                  />
+
+                  {thumb.file ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-xs text-gray-600 hover:text-gray-900"
+                      onClick={removeThumbnail}
+                      disabled={thumb.uploading}
+                    >
+                      Remove Thumbnail
+                    </button>
+                  ) : null}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-sm font-medium text-gray-900">
+                      Project Description (MP4)
+                    </label>
+                    <span className="rounded bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                      optional
+                    </span>
+                  </div>
+
+                  <div
+                    onClick={() =>
+                      !mp4.uploading && mp4InputRef.current?.click()
+                    }
+                    className={`mt-2 relative flex cursor-pointer flex-col items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100 ${mp4.uploading ? "cursor-not-allowed" : ""}`}
+                  >
+                    {mp4.uploading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-white/80 z-10">
+                        <svg
+                          className="h-8 w-8 animate-spin text-sky-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        <p className="mt-2 text-sm font-medium text-sky-600">
+                          Uploading...
+                        </p>
+                      </div>
+                    )}
+
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-10 w-10 text-gray-700"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 16V4" />
+                      <path d="M7 9l5-5 5 5" />
+                      <path d="M20 16v4H4v-4" />
+                    </svg>
+                    <div className="mt-3 text-sm font-medium text-gray-800">
+                      {mp4.uploading
+                        ? "Uploading..."
+                        : mp4.file
+                          ? mp4.file.name
+                          : "Drag & Drop your video here"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {mp4.url
+                        ? "Uploaded ✅"
+                        : mp4.uploading
+                          ? "Please wait..."
+                          : "…or click here to browse"}
+                    </div>
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      supported file type: .mp4
+                    </div>
+                    {mp4.error ? (
+                      <div className="mt-2 text-xs text-red-600">
+                        {mp4.error}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <input
+                    ref={mp4InputRef}
+                    type="file"
+                    accept="video/mp4"
+                    className="hidden"
+                    onChange={(e) => onPickMp4(e.target.files?.[0])}
+                  />
+
+                  {mp4.file ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-xs text-gray-600 hover:text-gray-900"
+                      onClick={removeMp4}
+                      disabled={mp4.uploading}
+                    >
+                      Remove MP4
+                    </button>
+                  ) : null}
+                </div>
+
                 <div>
                   <label
                     htmlFor={`${id}-name`}
@@ -301,78 +516,6 @@ export default function ProjectIntake() {
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-2">
-                    <label className="block text-sm font-medium text-gray-900">
-                      Project Description (MP4)
-                    </label>
-                    <span className="rounded bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700">
-                      optional
-                    </span>
-                  </div>
-
-                  <label
-                    htmlFor={`${id}-mp4`}
-                    className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-10 w-10 text-gray-700"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 16V4" />
-                      <path d="M7 9l5-5 5 5" />
-                      <path d="M20 16v4H4v-4" />
-                    </svg>
-
-                    <div className="mt-3 text-sm font-medium text-gray-800">
-                      {mp4.uploading
-                        ? "Uploading..."
-                        : mp4.file
-                          ? mp4.file.name
-                          : "Drag & Drop your video here"}
-                    </div>
-
-                    <div className="text-xs text-gray-500">
-                      {mp4.url ? "Uploaded ✅" : "…or click here to browse"}
-                    </div>
-
-                    <div className="mt-2 text-[11px] text-gray-500">
-                      supported file type: .mp4
-                    </div>
-
-                    {mp4.error ? (
-                      <div className="mt-2 text-xs text-red-600">
-                        {mp4.error}
-                      </div>
-                    ) : null}
-
-                    <input
-                      ref={mp4InputRef}
-                      id={`${id}-mp4`}
-                      type="file"
-                      accept="video/mp4"
-                      className="hidden"
-                      onChange={(e) => onPickMp4(e.target.files?.[0])}
-                    />
-                  </label>
-
-                  {mp4.file ? (
-                    <button
-                      type="button"
-                      className="mt-2 text-xs text-gray-600 hover:text-gray-900"
-                      onClick={removeMp4}
-                      disabled={mp4.uploading}
-                    >
-                      Remove MP4
-                    </button>
-                  ) : null}
-                </div>
-
-                <div>
                   <label
                     htmlFor={`${id}-goals`}
                     className="block text-sm font-medium text-gray-900"
@@ -390,78 +533,6 @@ export default function ProjectIntake() {
                   />
                 </div>
 
-                <div>
-                  <div className="flex items-center gap-2">
-                    <label className="block text-sm font-medium text-gray-900">
-                      Project Thumbnail
-                    </label>
-                    <span className="rounded bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700">
-                      required
-                    </span>
-                  </div>
-
-                  <label
-                    htmlFor={`${id}-thumb`}
-                    className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-10 w-10 text-gray-700"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 16V4" />
-                      <path d="M7 9l5-5 5 5" />
-                      <path d="M20 16v4H4v-4" />
-                    </svg>
-
-                    <div className="mt-3 text-sm font-medium text-gray-800">
-                      {thumb.uploading
-                        ? "Uploading..."
-                        : thumb.file
-                          ? thumb.file.name
-                          : "Drag & Drop your photo here"}
-                    </div>
-
-                    <div className="text-xs text-gray-500">
-                      {thumb.url ? "Uploaded ✅" : "…or click here to browse"}
-                    </div>
-
-                    <div className="mt-2 text-[11px] text-gray-500">
-                      supported file types: .jpg, .png, .webp
-                    </div>
-
-                    {thumb.error ? (
-                      <div className="mt-2 text-xs text-red-600">
-                        {thumb.error}
-                      </div>
-                    ) : null}
-
-                    <input
-                      ref={thumbInputRef}
-                      id={`${id}-thumb`}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={(e) => onPickThumbnail(e.target.files?.[0])}
-                    />
-                  </label>
-
-                  {thumb.file ? (
-                    <button
-                      type="button"
-                      className="mt-2 text-xs text-gray-600 hover:text-gray-900"
-                      onClick={removeThumbnail}
-                      disabled={thumb.uploading}
-                    >
-                      Remove Thumbnail
-                    </button>
-                  ) : null}
-                </div>
-
                 <div className="mt-2 flex items-center justify-between pt-2">
                   <button
                     type="button"
@@ -475,19 +546,22 @@ export default function ProjectIntake() {
                     disabled={!canSubmit}
                     className="cursor-pointer rounded-md bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-600 disabled:opacity-50"
                   >
-                    {submitting ? "Submitting..." : "Submit"}
+                    {submitting
+                      ? "Submitting..."
+                      : thumb.uploading
+                        ? "Uploading..."
+                        : "Submit"}
                   </button>
                 </div>
 
-                {!thumb.url ? (
+                {!thumb.file ? (
                   <p className="text-xs text-gray-500">
-                    * You need to upload a thumbnail in order to proceed
+                    * You need to select a thumbnail in order to proceed
                   </p>
                 ) : null}
               </div>
             </form>
           </div>
-
           <div className="h-4" />
         </div>
       </div>

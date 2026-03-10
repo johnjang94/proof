@@ -1,10 +1,4 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 import type { NextConfig } from "next";
-
-const withPWA = require("next-pwa")({
-  dest: "public",
-  disable: process.env.NODE_ENV === "development",
-});
 
 const nextConfig: NextConfig = {
   images: {
@@ -21,8 +15,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.r2.cloudflarestorage.com",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+      },
     ],
   },
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;

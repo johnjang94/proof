@@ -5,8 +5,8 @@ import { useRequireSession } from "@/lib/auth/useRequireSession";
 import { supabase } from "@/lib/supabaseInstance";
 import WelcomeToDo from "@/components/welcome/welcome-todo";
 
-export default function WrapUp() {
-  const ok = useRequireSession("/login?role=client");
+export default function Ready() {
+  const ok = useRequireSession("/login?role=participant");
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -25,9 +25,8 @@ export default function WrapUp() {
       ].join(" ")}
     >
       <h1 className="text-3xl">Now, are you ready to have some fun with us?</h1>
-
       <WelcomeToDo
-        nextPath="/login?role=client&from=signup"
+        nextPath="/login?role=participant&from=signup"
         onBeforeNavigate={async () => {
           await supabase.auth.signOut();
         }}

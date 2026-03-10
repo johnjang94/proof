@@ -19,6 +19,7 @@ type ProjectItem = {
   client?: {
     companyName?: string | null;
     avatarUrl?: string | null;
+    companyLogoUrl?: string | null;
     firstName?: string | null;
     lastName?: string | null;
   } | null;
@@ -202,7 +203,18 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-start gap-3 px-1">
-                    {project.client?.avatarUrl ? (
+                    {project.client?.companyLogoUrl ? (
+                      <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-neutral-200 bg-white">
+                        <Image
+                          src={project.client.companyLogoUrl}
+                          alt={`${hostedBy} logo`}
+                          fill
+                          sizes="36px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ) : project.client?.avatarUrl ? (
                       <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
                         <Image
                           src={project.client.avatarUrl}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
-import { FiEdit2, FiX, FiArrowLeft } from "react-icons/fi";
+import { FiX, FiArrowLeft } from "react-icons/fi";
 
 import { supabase } from "@/lib/supabaseInstance";
 import { apiFetch } from "@/lib/apiFetch";
@@ -19,15 +19,6 @@ type ProjectDetail = {
   mp4Url: string | null;
   createdAt?: string;
   status?: string;
-};
-
-type EditForm = {
-  projectName: string;
-  budgetRange: string;
-  timeInvestment: string;
-  projectDescription: string;
-  goals: string;
-  thumbnailUrl: string;
 };
 
 function formatStatus(status?: string) {
@@ -61,17 +52,6 @@ function formatSubmittedDate(value?: string) {
   });
 }
 
-function toEditForm(project: ProjectDetail): EditForm {
-  return {
-    projectName: project.projectName || "",
-    budgetRange: project.budgetRange || "",
-    timeInvestment: project.timeInvestment || "",
-    projectDescription: project.projectDescription || "",
-    goals: project.goals || "",
-    thumbnailUrl: project.thumbnailUrl || "",
-  };
-}
-
 export default function ProjectDetail() {
   const router = useRouter();
   const { id } = router.query;
@@ -80,22 +60,9 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
-
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
-  const [withdrawError, setWithdrawError] = useState("");
-
-  const [form, setForm] = useState<EditForm>({
-    projectName: "",
-    budgetRange: "",
-    timeInvestment: "",
-    projectDescription: "",
-    goals: "",
-    thumbnailUrl: "",
-  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (!router.isReady || typeof id !== "string") return;
@@ -114,7 +81,7 @@ export default function ProjectDetail() {
           return;
         }
 
-        const res = await apiFetch("/my/project-intakes", {
+        const res = await apiFetch(`/project-intakes/${id}`, {
           method: "GET",
         });
 
@@ -124,18 +91,13 @@ export default function ProjectDetail() {
         }
 
         const json = await res.json();
-        const items: ProjectDetail[] = Array.isArray(json?.items)
-          ? json.items
-          : [];
+        const intake: ProjectDetail | null = json ?? null;
 
-        const found = items.find((item) => item.id === id);
-
-        if (!found) {
+        if (!intake) {
           throw new Error("Project not found.");
         }
 
-        setProject(found);
-        setForm(toEditForm(found));
+        setProject(intake);
       } catch (err) {
         console.error(err);
         setError(
@@ -147,118 +109,39 @@ export default function ProjectDetail() {
     };
 
     bootstrap();
-  }, [router, id]);
+  }, [router.isReady, id, router]);
 
   const statusLabel = useMemo(
     () => formatStatus(project?.status),
     [project?.status],
   );
 
-  const canEdit =
-    statusLabel === "Pending HR Review" || statusLabel === "Recruiting";
-
-  const handleChange = (key: keyof EditForm, value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  const handleStartEdit = () => {
-    if (!project) return;
-    setSaveError("");
-    setForm(toEditForm(project));
-    setIsEditing(true);
-  };
-
-  const handleCancelEdit = () => {
-    if (!project) return;
-    setSaveError("");
-    setForm(toEditForm(project));
-    setIsEditing(false);
-  };
-
-  const handleSave = async () => {
-    if (!project) return;
+  const handleDelete = async () => {
+    const currentProject = project;
+    if (!currentProject) return;
 
     try {
-      setSaving(true);
-      setSaveError("");
+      setDeleting(true);
+      setDeleteError("");
 
-      const payload = {
-        projectName: form.projectName.trim(),
-        budgetRange: form.budgetRange.trim(),
-        timeInvestment: form.timeInvestment.trim(),
-        projectDescription: form.projectDescription.trim(),
-        goals: form.goals.trim(),
-        thumbnailUrl: form.thumbnailUrl.trim() || null,
-      };
-
-      const res = await apiFetch(`/my/project-intakes/${project.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Failed to update project (${res.status}). ${text}`);
-      }
-
-      const json = await res.json().catch(() => null);
-      const updated: ProjectDetail = json?.item ??
-        json?.project ?? { ...project, ...payload };
-
-      setProject((prev) =>
-        prev
-          ? {
-              ...prev,
-              ...updated,
-              projectName: payload.projectName,
-              budgetRange: payload.budgetRange,
-              timeInvestment: payload.timeInvestment,
-              projectDescription: payload.projectDescription,
-              goals: payload.goals,
-              thumbnailUrl: payload.thumbnailUrl,
-            }
-          : prev,
-      );
-
-      setIsEditing(false);
-    } catch (err) {
-      console.error(err);
-      setSaveError(
-        err instanceof Error ? err.message : "Failed to save changes.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleWithdraw = async () => {
-    if (!project) return;
-
-    try {
-      setWithdrawing(true);
-      setWithdrawError("");
-
-      const res = await apiFetch(`/my/project-intakes/${project.id}`, {
+      const res = await apiFetch(`/project-intakes/${currentProject.id}`, {
         method: "DELETE",
       });
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`Failed to withdraw project (${res.status}). ${text}`);
+        throw new Error(`Failed to delete project (${res.status}). ${text}`);
       }
 
-      setShowWithdrawModal(false);
+      setShowDeleteModal(false);
       router.push("/main/client/landing");
     } catch (err) {
       console.error(err);
-      setWithdrawError(
-        err instanceof Error ? err.message : "Failed to withdraw request.",
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete project.",
       );
     } finally {
-      setWithdrawing(false);
+      setDeleting(false);
     }
   };
 
@@ -302,20 +185,15 @@ export default function ProjectDetail() {
             <div>
               <div className="rounded-md border border-[#e3c46a] bg-[#f4d88b] px-4 py-4 text-[18px] text-[#b46a00] shadow-sm">
                 <span className="font-medium">{statusLabel}</span>
-                {canEdit ? " - You may edit before it gets approved" : null}
               </div>
 
               <div className="relative mt-5 h-80 w-full overflow-hidden rounded-lg border border-gray-300 bg-gray-100">
-                {(isEditing ? form.thumbnailUrl : project.thumbnailUrl) ? (
+                {project.thumbnailUrl ? (
                   <Image
-                    src={
-                      isEditing
-                        ? form.thumbnailUrl
-                        : (project.thumbnailUrl as string)
-                    }
-                    alt={isEditing ? form.projectName : project.projectName}
+                    src={project.thumbnailUrl}
+                    alt={project.projectName}
                     fill
-                    sizes="100vw"
+                    sizes="(max-width: 768px) 100vw, 1200px"
                     className="object-cover"
                     priority
                   />
@@ -328,85 +206,29 @@ export default function ProjectDetail() {
 
               <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div className="w-full">
-                  {isEditing ? (
-                    <>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Project Name
-                      </label>
-                      <input
-                        type="text"
-                        value={form.projectName}
-                        onChange={(e) =>
-                          handleChange("projectName", e.target.value)
-                        }
-                        className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-4xl font-semibold leading-tight text-black outline-none transition focus:border-black"
-                      />
-                    </>
-                  ) : (
-                    <h1 className="text-4xl font-semibold leading-tight text-black">
-                      {project.projectName}
-                    </h1>
-                  )}
+                  <h1 className="text-4xl font-semibold leading-tight text-black">
+                    {project.projectName}
+                  </h1>
                 </div>
-
-                {!isEditing && (
-                  <button
-                    type="button"
-                    onClick={handleStartEdit}
-                    disabled={!canEdit}
-                    className="inline-flex w-48 items-center gap-2 self-start rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-900 shadow-sm transition hover:cursor-pointer hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 md:self-end"
-                  >
-                    <FiEdit2 className="text-[18px]" />
-                    Edit submission
-                  </button>
-                )}
               </div>
-
-              {saveError ? (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {saveError}
-                </div>
-              ) : null}
 
               <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-4">
                 <div>
                   <p className="mb-2 text-[20px] font-medium uppercase tracking-wide text-black">
                     Budget Range
                   </p>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={form.budgetRange}
-                      onChange={(e) =>
-                        handleChange("budgetRange", e.target.value)
-                      }
-                      className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-[18px] text-gray-900 outline-none transition focus:border-black"
-                    />
-                  ) : (
-                    <div className="rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] text-gray-900">
-                      {project.budgetRange || "-"}
-                    </div>
-                  )}
+                  <div className="rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] text-gray-900">
+                    {project.budgetRange || "-"}
+                  </div>
                 </div>
 
                 <div>
                   <p className="mb-2 text-[20px] font-medium uppercase tracking-wide text-black">
                     Timeline
                   </p>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={form.timeInvestment}
-                      onChange={(e) =>
-                        handleChange("timeInvestment", e.target.value)
-                      }
-                      className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-[18px] text-gray-900 outline-none transition focus:border-black"
-                    />
-                  ) : (
-                    <div className="rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] text-gray-900">
-                      {project.timeInvestment || "-"}
-                    </div>
-                  )}
+                  <div className="rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] text-gray-900">
+                    {project.timeInvestment || "-"}
+                  </div>
                 </div>
 
                 <div>
@@ -423,162 +245,85 @@ export default function ProjectDetail() {
                 <label className="mb-2 block text-[20px] font-medium text-black">
                   Project Description
                 </label>
-                {isEditing ? (
-                  <textarea
-                    value={form.projectDescription}
-                    onChange={(e) =>
-                      handleChange("projectDescription", e.target.value)
-                    }
-                    rows={7}
-                    className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-[18px] leading-8 text-gray-900 outline-none transition focus:border-black"
-                  />
-                ) : (
-                  <div className="min-h-27.5 rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] leading-8 text-gray-900">
-                    {project.projectDescription || "-"}
-                  </div>
-                )}
+                <div className="min-h-27.5 rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] leading-8 text-gray-900">
+                  {project.projectDescription || "-"}
+                </div>
               </div>
 
               <div className="mt-5">
                 <label className="mb-2 block text-[20px] font-medium text-black">
                   What is your goal for this project?
                 </label>
-                {isEditing ? (
-                  <textarea
-                    value={form.goals}
-                    onChange={(e) => handleChange("goals", e.target.value)}
-                    rows={4}
-                    className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-[18px] leading-8 text-gray-900 outline-none transition focus:border-black"
-                  />
-                ) : (
-                  <div className="min-h-18 rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] leading-8 text-gray-900">
-                    {project.goals || "-"}
-                  </div>
-                )}
+                <div className="min-h-18 rounded-md border border-gray-300 bg-[#efefef] px-4 py-3 text-[18px] leading-8 text-gray-900">
+                  {project.goals || "-"}
+                </div>
               </div>
 
               <div className="mt-5">
                 <label className="mb-2 block text-[18px] font-medium text-black">
-                  Project Thumbnail
+                  Thumbnail
                 </label>
 
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={form.thumbnailUrl}
-                      onChange={(e) =>
-                        handleChange("thumbnailUrl", e.target.value)
-                      }
-                      placeholder="Paste thumbnail URL"
-                      className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-[16px] text-gray-900 outline-none transition focus:border-black"
+                <div className="relative h-45 w-full overflow-hidden rounded-md border border-gray-300 bg-white md:h-55">
+                  {project.thumbnailUrl ? (
+                    <Image
+                      src={project.thumbnailUrl}
+                      alt={`${project.projectName} thumbnail`}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 768px"
+                      className="object-contain"
                     />
-
-                    <div className="relative h-45 w-full overflow-hidden rounded-md border border-gray-300 bg-white md:h-55">
-                      {form.thumbnailUrl ? (
-                        <Image
-                          src={form.thumbnailUrl}
-                          alt={`${form.projectName} thumbnail`}
-                          fill
-                          sizes="100vw"
-                          className="object-contain"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center text-center text-gray-500">
-                          <p className="text-lg font-medium">
-                            No thumbnail uploaded
-                          </p>
-                        </div>
-                      )}
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center text-center text-gray-500">
+                      <p className="text-lg font-medium">
+                        No thumbnail uploaded
+                      </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="relative h-45 w-full overflow-hidden rounded-md border border-gray-300 bg-white md:h-55">
-                    {project.thumbnailUrl ? (
-                      <Image
-                        src={project.thumbnailUrl}
-                        alt={`${project.projectName} thumbnail`}
-                        fill
-                        sizes="100vw"
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center text-center text-gray-500">
-                        <p className="text-lg font-medium">
-                          No thumbnail uploaded
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div className="mt-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-                {isEditing ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleCancelEdit}
-                      disabled={saving}
-                      className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-[16px] font-medium text-gray-900 shadow-sm transition hover:cursor-pointer hover:bg-gray-50 disabled:opacity-60"
-                    >
-                      Cancel
-                    </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/main/client/landing")}
+                  className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-[16px] font-medium text-gray-900 shadow-sm transition hover:cursor-pointer hover:bg-gray-50"
+                >
+                  <FiArrowLeft className="text-[18px]" />
+                  Back
+                </button>
 
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="inline-flex items-center gap-2 rounded-md border border-black bg-black px-4 py-2 text-[16px] font-medium text-white shadow-sm transition hover:cursor-pointer hover:opacity-90 disabled:opacity-60"
-                    >
-                      {saving ? "Saving..." : "Save changes"}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => router.push("/main/client/landing")}
-                      className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-[16px] font-medium text-gray-900 shadow-sm transition hover:cursor-pointer hover:bg-gray-50"
-                    >
-                      <FiArrowLeft className="text-[18px]" />
-                      Back
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWithdrawError("");
-                        setShowWithdrawModal(true);
-                      }}
-                      className="inline-flex items-center gap-2 rounded-md border border-red-500 bg-white px-4 py-2 text-[16px] font-medium text-red-600 shadow-sm transition hover:cursor-pointer hover:bg-red-50"
-                    >
-                      <FiX className="text-[18px]" />
-                      Withdraw request
-                    </button>
-                  </>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteError("");
+                    setShowDeleteModal(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-md border border-red-500 bg-white px-4 py-2 text-[16px] font-medium text-red-600 shadow-sm transition hover:cursor-pointer hover:bg-red-50"
+                >
+                  <FiX className="text-[18px]" />
+                  Delete project
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {showWithdrawModal ? (
+      {showDeleteModal ? (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <h2 className="text-2xl font-semibold text-black">
-              Withdraw this request?
+              Delete this project?
             </h2>
 
             <p className="mt-3 text-[16px] leading-7 text-gray-600">
-              This project request will be removed. This action cannot be
-              undone.
+              This project will be removed. This action cannot be undone.
             </p>
 
-            {withdrawError ? (
+            {deleteError ? (
               <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {withdrawError}
+                {deleteError}
               </div>
             ) : null}
 
@@ -586,10 +331,10 @@ export default function ProjectDetail() {
               <button
                 type="button"
                 onClick={() => {
-                  if (withdrawing) return;
-                  setShowWithdrawModal(false);
+                  if (deleting) return;
+                  setShowDeleteModal(false);
                 }}
-                disabled={withdrawing}
+                disabled={deleting}
                 className="rounded-md border border-gray-300 bg-white px-4 py-2 text-[15px] font-medium text-gray-900 transition hover:bg-gray-50 disabled:opacity-60"
               >
                 Cancel
@@ -597,11 +342,11 @@ export default function ProjectDetail() {
 
               <button
                 type="button"
-                onClick={handleWithdraw}
-                disabled={withdrawing}
+                onClick={handleDelete}
+                disabled={deleting}
                 className="cursor-pointer rounded-md border border-red-600 bg-red-600 px-4 py-2 text-[15px] font-medium text-white transition hover:opacity-90 disabled:opacity-60"
               >
-                {withdrawing ? "Withdrawing..." : "Yes, withdraw"}
+                {deleting ? "Deleting..." : "Yes, delete"}
               </button>
             </div>
           </div>

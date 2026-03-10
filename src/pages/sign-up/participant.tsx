@@ -218,7 +218,7 @@ export default function Participant() {
         avatar_url: avatarUrl,
       });
 
-      router.replace("/welcome/introduction");
+      router.replace("/welcome/participant/introduction");
     } catch (error) {
       setAuthError(
         error instanceof Error ? error.message : "Something went wrong",
@@ -380,7 +380,9 @@ export default function Participant() {
                   <Image
                     src={avatarPreview}
                     alt="Avatar preview"
-                    className="h-full w-full object-cover"
+                    width={50}
+                    height={50}
+                    className="object-cover"
                   />
                 ) : (
                   <div className="h-full w-full bg-gray-100" />
