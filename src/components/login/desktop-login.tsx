@@ -94,7 +94,7 @@ export default function DesktopLogin({
 
     if (!profile || profile.role !== role) {
       await supabase.auth.signOut();
-      window.location.href = "/login?error=unregistered";
+      await router.replace("/login?error=unregistered");
       return;
     }
 
