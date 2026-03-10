@@ -43,7 +43,6 @@ export default function TopNav({ variant, authUser }: TopNavProps) {
   }, []);
 
   const showHamburger = variant === "participant";
-  const showClientIcons = variant === "client";
   const searchWidthClass = variant === "client" ? "w-5/6" : "w-full";
 
   const menuItems = useMemo(
@@ -110,12 +109,10 @@ export default function TopNav({ variant, authUser }: TopNavProps) {
         </div>
       </div>
 
-      {showClientIcons && (
-        <div className="flex items-center gap-1.5">
-          <IoCartOutline className="text-4xl" />
-          <MdOutlineNotificationsNone className="text-4xl" />
-        </div>
-      )}
+      <div className="flex items-center gap-1.5">
+        <IoCartOutline className="text-4xl" />
+        <MdOutlineNotificationsNone className="text-4xl" />
+      </div>
     </div>
   );
 }
