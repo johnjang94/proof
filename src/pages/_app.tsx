@@ -86,6 +86,7 @@ export default function App({ Component, pageProps }: AppProps) {
     "/main/participant/project",
     "/projects/public",
     "/project",
+    "/main/participant/recruitment",
   ];
 
   const guestAllowed = guestAllowedRoutes.some(
@@ -165,10 +166,10 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     if (!router.isReady) return;
     if (!authResolved) return;
+    if (isAuthRoute) return;
 
     if (role === null) {
       if (guestAllowed) return;
-
       const next = encodeURIComponent(asPath);
       void router.replace(`/login?redirectTo=${next}`);
       return;
@@ -197,6 +198,7 @@ export default function App({ Component, pageProps }: AppProps) {
     asPath,
     authResolved,
     guestAllowed,
+    isAuthRoute,
     isClientRoute,
     pathname,
     role,

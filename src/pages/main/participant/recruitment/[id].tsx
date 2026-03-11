@@ -7,19 +7,16 @@ import { FiChevronRight } from "react-icons/fi";
 import { MdLocalFireDepartment } from "react-icons/md";
 import { apiFetch } from "@/lib/apiFetch";
 
-type ParticipantProjectDetail = {
+type ProjectDetail = {
   id: string;
   projectName: string;
   thumbnailUrl?: string | null;
-  projectDescription?: string | null;
-  expectedOutcome?: string | null;
   projectDeadline?: string | null;
   createdAt?: string;
   viewCount?: number;
   submissionType?: string | null;
   companyName?: string | null;
   companyLogoUrl?: string | null;
-  serviceDescription?: string | null;
 };
 
 const FALLBACK_BANNER =
@@ -36,21 +33,6 @@ function isNewProject(createdAt?: string) {
   return Date.now() - created <= 7 * 24 * 60 * 60 * 1000;
 }
 
-function formatTimeRemaining(deadlineStr?: string | null): string {
-  if (!deadlineStr) return "TBD";
-  const deadline = new Date(deadlineStr);
-  if (Number.isNaN(deadline.getTime())) return "TBD";
-  const diffMs = deadline.getTime() - Date.now();
-  if (diffMs <= 0) return "Deadline passed";
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const diffWeeks = Math.floor(diffDays / 7);
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths >= 2) return `${diffMonths} months remaining`;
-  if (diffWeeks >= 1)
-    return `${diffWeeks} week${diffWeeks > 1 ? "s" : ""} remaining`;
-  return `${diffDays} day${diffDays !== 1 ? "s" : ""} remaining`;
-}
-
 function formatDeadlineDate(deadlineStr?: string | null): string {
   if (!deadlineStr) return "TBD";
   const deadline = new Date(deadlineStr);
@@ -62,11 +44,27 @@ function formatDeadlineDate(deadlineStr?: string | null): string {
   });
 }
 
-export default function ParticipantProjectDetailPage() {
+const STEPS = [
+  {
+    label: "Submit Application",
+    description: "Apply with your resume and cover letter",
+  },
+  {
+    label: "Interview",
+    description:
+      "Participate in a video interview to discuss your experience and fit for the team. Please note that HR roles will be required to interview with the client.",
+  },
+  {
+    label: "Selection",
+    description: "Applicants will be notified whether they are chosen",
+  },
+];
+
+export default function Recruitment() {
   const router = useRouter();
   const { id } = router.query;
 
-  const [project, setProject] = useState<ParticipantProjectDetail | null>(null);
+  const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
@@ -84,9 +82,7 @@ export default function ParticipantProjectDetailPage() {
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
-          throw new Error(
-            `Failed to load project detail (${res.status}). ${text}`,
-          );
+          throw new Error(`Failed to load project (${res.status}). ${text}`);
         }
 
         const data = await res.json();
@@ -98,23 +94,17 @@ export default function ParticipantProjectDetailPage() {
           id: item?.id ?? id,
           projectName: item?.projectName ?? "Untitled Project",
           thumbnailUrl: item?.thumbnailUrl ?? null,
-          projectDescription: item?.projectDescription ?? "",
-          expectedOutcome: item?.expectedOutcome ?? "",
           projectDeadline: item?.projectDeadline ?? null,
           createdAt: item?.createdAt,
           viewCount: item?.viewCount ?? 0,
           submissionType: item?.submissionType ?? "self-guided",
           companyName: item?.clientUser?.company?.name ?? null,
           companyLogoUrl: item?.clientUser?.company?.logoUrl ?? null,
-          serviceDescription:
-            item?.clientUser?.company?.serviceDescription ?? null,
         });
       } catch (error) {
         if (!mounted) return;
         setPageError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load project details.",
+          error instanceof Error ? error.message : "Failed to load project.",
         );
       } finally {
         if (mounted) setLoading(false);
@@ -139,10 +129,6 @@ export default function ParticipantProjectDetailPage() {
     () => !popular && isNewProject(project?.createdAt),
     [popular, project?.createdAt],
   );
-  const timeRemaining = useMemo(
-    () => formatTimeRemaining(project?.projectDeadline),
-    [project?.projectDeadline],
-  );
   const deadlineDate = useMemo(
     () => formatDeadlineDate(project?.projectDeadline),
     [project?.projectDeadline],
@@ -160,10 +146,7 @@ export default function ParticipantProjectDetailPage() {
           <div className="mb-4 h-6 w-56 rounded bg-gray-200" />
           <div className="mb-4 h-70 w-full rounded-2xl bg-gray-200 md:h-105" />
           <div className="mb-4 h-10 w-3/4 rounded bg-gray-200" />
-          <div className="grid gap-5 md:grid-cols-[1.1fr_0.9fr]">
-            <div className="h-80 rounded-2xl bg-gray-200" />
-            <div className="h-80 rounded-2xl bg-gray-200" />
-          </div>
+          <div className="h-80 rounded-2xl bg-gray-200" />
         </div>
       </main>
     );
@@ -236,59 +219,60 @@ export default function ParticipantProjectDetailPage() {
           )}
         </div>
 
-        <div className="grid gap-5 md:grid-cols-[1.05fr_1fr] md:items-stretch">
-          <section className="rounded-[18px] bg-[#bcbcbc] p-5 md:p-6">
-            <h2 className="mb-4 text-[24px] font-medium leading-none md:text-[26px]">
-              About the Project
-            </h2>
-            <div className="whitespace-pre-line text-[17px] leading-[1.42] text-[#1e1e1e] md:text-[18px]">
-              {project.projectDescription ||
-                "Project details will appear here once available."}
-            </div>
-          </section>
+        <p className="mb-6 text-sm text-gray-500">
+          About the Project · {lookingForLabel}, deadline on {deadlineDate}
+        </p>
 
-          <section className="flex min-h-80 flex-col justify-between rounded-[18px] bg-transparent px-1 py-1 md:px-4">
-            <div className="space-y-7 pt-1">
-              <div className="flex items-start justify-between gap-4">
-                <span className="text-[16px] text-[#333333] md:text-[18px]">
-                  Looking for
-                </span>
-                <span className="text-right text-[22px] font-medium leading-tight text-[#111111] md:text-[28px]">
-                  {lookingForLabel}
-                </span>
-              </div>
+        <h2 className="mb-4 text-[26px] font-semibold text-[#111111]">
+          Recruitment Process
+        </h2>
 
-              <div className="flex items-start justify-between gap-4">
-                <span className="text-[16px] text-[#333333] md:text-[18px]">
-                  Required commitment period
-                </span>
-                <span className="text-right text-[18px] font-medium leading-tight text-[#111111] md:text-[22px]">
-                  {timeRemaining}
-                </span>
-              </div>
+        <div className="mb-4 rounded-2xl bg-[#f0f0f0] px-5 py-4">
+          <p className="text-[15px] leading-snug text-[#111111]">
+            We select talented individuals through a detailed three-step
+            recruitment process tailored to find the right colleagues for the
+            project
+          </p>
+        </div>
 
-              <div className="flex items-start justify-between gap-4">
-                <span className="text-[16px] text-[#333333] md:text-[18px]">
-                  Project Deadline
+        <div className="space-y-3">
+          {STEPS.map((step, idx) => (
+            <div
+              key={step.label}
+              className="rounded-2xl bg-[#f0f0f0] px-5 py-4"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500 text-sm font-semibold text-white">
+                  {idx + 1}
                 </span>
-                <span className="text-right text-[18px] font-medium leading-tight text-[#111111] md:text-[22px]">
-                  {deadlineDate}
-                </span>
+                <div>
+                  <p className="text-[15px] font-semibold text-[#111111]">
+                    {step.label}
+                  </p>
+                  <p className="mt-1 text-[14px] text-[#444444]">
+                    {step.description}
+                  </p>
+                </div>
               </div>
             </div>
+          ))}
+        </div>
 
-            <div className="mt-8">
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(`/main/participant/job-description/${project.id}`)
-                }
-                className="w-full rounded-xl bg-[#97baf4] px-5 py-3 text-[18px] font-medium text-[#111111] transition hover:brightness-[0.98] active:scale-[0.998] hover:cursor-pointer"
-              >
-                View Job Description
-              </button>
-            </div>
-          </section>
+        <div className="mt-10 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex-1 border-b border-gray-300 py-3 text-center text-[17px] font-medium text-[#111111] hover:cursor-pointer"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/main/participant/project/${id}/apply`)}
+            className="flex-2 rounded-xl bg-[#2e7d32] px-5 py-3 text-center text-[17px] font-semibold text-white transition hover:brightness-95 hover:cursor-pointer"
+          >
+            I understand
+          </button>
         </div>
       </div>
     </main>

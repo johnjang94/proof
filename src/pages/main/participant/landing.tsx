@@ -18,25 +18,28 @@ type Props = {
 type ProjectItem = {
   id: string;
   projectName: string;
-  budgetRange: string;
-  timeInvestment: string;
   projectDescription: string;
-  goals: string;
+  expectedOutcome: string;
+  budgetAllowance: string;
+  projectDeadline: string;
   thumbnailUrl: string | null;
-  mp4Url: string | null;
+  videoUrl: string | null;
+  submissionType: string;
+  status: string;
   createdAt?: string;
-  status?: string;
   clientUser?: {
-    companyName?: string | null;
-    avatarUrl?: string | null;
-    companyLogoUrl?: string | null;
     firstName?: string | null;
     lastName?: string | null;
+    avatarUrl?: string | null;
+    company?: {
+      name?: string | null;
+      logoUrl?: string | null;
+    } | null;
   } | null;
 };
 
 function getHostedBy(project: ProjectItem) {
-  const companyName = project.clientUser?.companyName?.trim();
+  const companyName = project.clientUser?.company?.name?.trim();
   if (companyName) return companyName;
 
   const fullName = [project.clientUser?.firstName, project.clientUser?.lastName]
@@ -106,8 +109,8 @@ function ProjectCard({
   const hostedBy = getHostedBy(project);
   const thumbnail = project.thumbnailUrl || null;
   const relativeTime = formatRelativeTime(project.createdAt);
-  const companyMeta =
-    project.budgetRange?.trim() || project.timeInvestment?.trim() || "";
+  const logoUrl = project.clientUser?.company?.logoUrl;
+  const avatarUrl = project.clientUser?.avatarUrl;
 
   return (
     <article onClick={onClick} className="group cursor-pointer">
@@ -129,10 +132,10 @@ function ProjectCard({
       </div>
 
       <div className="flex items-start gap-3 px-1">
-        {project.clientUser?.companyLogoUrl ? (
+        {logoUrl ? (
           <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-neutral-200 bg-white">
             <Image
-              src={project.clientUser?.companyLogoUrl}
+              src={logoUrl}
               alt={`${hostedBy} logo`}
               fill
               sizes="36px"
@@ -140,10 +143,10 @@ function ProjectCard({
               unoptimized
             />
           </div>
-        ) : project.clientUser?.avatarUrl ? (
+        ) : avatarUrl ? (
           <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
             <Image
-              src={project.clientUser?.avatarUrl}
+              src={avatarUrl}
               alt={`${hostedBy} avatar`}
               fill
               sizes="36px"
@@ -164,12 +167,6 @@ function ProjectCard({
 
           <div className="mt-2 flex min-w-0 items-center gap-2 text-[13px] text-neutral-500">
             <span className="truncate">{hostedBy}</span>
-            {companyMeta ? (
-              <>
-                <span className="text-neutral-300">·</span>
-                <span className="truncate">{companyMeta}</span>
-              </>
-            ) : null}
           </div>
 
           <div className="mt-1 flex items-center gap-2 text-[12px] text-neutral-400">
