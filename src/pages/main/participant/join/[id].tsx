@@ -11,57 +11,22 @@ type ProjectDetail = {
   id: string;
   projectName: string;
   thumbnailUrl?: string | null;
-  projectDeadline?: string | null;
   createdAt?: string;
   viewCount?: number;
-  submissionType?: string | null;
   companyName?: string | null;
   companyLogoUrl?: string | null;
 };
 
-type RoleConfig = {
-  label: string;
-  interviewDescription: string;
-};
-
-const ROLE_CONFIG: Record<string, RoleConfig> = {
-  guided: {
-    label: "Project Coordinator",
-    interviewDescription:
-      "As a project coordinator, you will be required to participate in a video interview with the client to discuss your experience and fit to form a team.",
-  },
-};
-
-const DEFAULT_ROLE_CONFIG: RoleConfig = {
-  label: "TBD",
-  interviewDescription:
-    "Participate in a video interview to discuss your experience and fit for the team.",
-};
-
-function getRoleConfig(submissionType?: string | null): RoleConfig {
-  if (!submissionType) return DEFAULT_ROLE_CONFIG;
-  return ROLE_CONFIG[submissionType] ?? DEFAULT_ROLE_CONFIG;
-}
-
-function getSteps(interviewDescription: string) {
-  return [
-    {
-      label: "Submit Application",
-      description: "Apply with your resume and cover letter",
-    },
-    {
-      label: "Interview",
-      description: interviewDescription,
-    },
-    {
-      label: "Selection",
-      description: "Applicants will be notified whether they are chosen",
-    },
-  ];
-}
-
 const FALLBACK_BANNER =
   "https://images.unsplash.com/photo-1519003722824-194d4455a60c?q=80&w=1600&auto=format&fit=crop";
+
+const BENEFITS = [
+  "point rewards",
+  "networking opportunities",
+  "mentorship & guidance",
+  "reference letter",
+  "exclusive completion badge",
+];
 
 function isPopularProject(viewCount?: number) {
   return (viewCount ?? 0) >= 10;
@@ -74,18 +39,7 @@ function isNewProject(createdAt?: string) {
   return Date.now() - created <= 7 * 24 * 60 * 60 * 1000;
 }
 
-function formatDeadlineDate(deadlineStr?: string | null): string {
-  if (!deadlineStr) return "TBD";
-  const deadline = new Date(deadlineStr);
-  if (Number.isNaN(deadline.getTime())) return "TBD";
-  return deadline.toLocaleDateString("en-CA", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-export default function Recruitment() {
+export default function Join() {
   const router = useRouter();
   const { id } = router.query;
 
@@ -119,10 +73,8 @@ export default function Recruitment() {
           id: item?.id ?? id,
           projectName: item?.projectName ?? "Untitled Project",
           thumbnailUrl: item?.thumbnailUrl ?? null,
-          projectDeadline: item?.projectDeadline ?? null,
           createdAt: item?.createdAt,
           viewCount: item?.viewCount ?? 0,
-          submissionType: item?.submissionType ?? "self-guided",
           companyName: item?.clientUser?.company?.name ?? null,
           companyLogoUrl: item?.clientUser?.company?.logoUrl ?? null,
         });
@@ -154,18 +106,6 @@ export default function Recruitment() {
     () => !popular && isNewProject(project?.createdAt),
     [popular, project?.createdAt],
   );
-  const deadlineDate = useMemo(
-    () => formatDeadlineDate(project?.projectDeadline),
-    [project?.projectDeadline],
-  );
-  const roleConfig = useMemo(
-    () => getRoleConfig(project?.submissionType),
-    [project?.submissionType],
-  );
-  const steps = useMemo(
-    () => getSteps(roleConfig.interviewDescription),
-    [roleConfig.interviewDescription],
-  );
 
   if (loading) {
     return (
@@ -174,7 +114,7 @@ export default function Recruitment() {
           <div className="mb-4 h-6 w-56 rounded bg-gray-200" />
           <div className="mb-4 h-70 w-full rounded-2xl bg-gray-200 md:h-105" />
           <div className="mb-4 h-10 w-3/4 rounded bg-gray-200" />
-          <div className="h-80 rounded-2xl bg-gray-200" />
+          <div className="h-40 rounded-2xl bg-gray-200" />
         </div>
       </main>
     );
@@ -233,7 +173,7 @@ export default function Recruitment() {
           </div>
         </div>
 
-        <div className="mb-5 flex items-center gap-3">
+        <div className="mb-8 flex items-center gap-3">
           {isNew && (
             <span className="inline-flex items-center rounded-md bg-[#bfe0ff] px-3 py-1 text-sm font-medium text-[#0f2942]">
               New
@@ -247,60 +187,34 @@ export default function Recruitment() {
           )}
         </div>
 
-        <p className="mb-6 text-sm text-gray-500">
-          About the Project · {roleConfig.label}, deadline on {deadlineDate}
-        </p>
-
-        <h2 className="mb-4 text-[26px] font-semibold text-[#111111]">
-          Recruitment Process
-        </h2>
-
-        <div className="mb-4 rounded-2xl bg-[#f0f0f0] px-5 py-4">
-          <p className="text-[15px] leading-snug text-[#111111]">
-            We select talented individuals through a detailed three-step
-            recruitment process tailored to find the right colleagues for the
-            project
+        <div className="flex flex-col items-center text-center">
+          <h2 className="mb-2 text-[26px] font-semibold text-[#111111]">
+            Let&apos;s get started
+          </h2>
+          <p className="mb-4 text-[15px] text-[#444444]">
+            Complete the project to receive:
           </p>
-        </div>
+          <ul className="mb-10 space-y-1 text-left text-[15px] text-[#111111]">
+            {BENEFITS.map((benefit) => (
+              <li key={benefit} className="flex items-center gap-2">
+                <span className="text-[#111111]">•</span>
+                {benefit}
+              </li>
+            ))}
+          </ul>
 
-        <div className="space-y-3">
-          {steps.map((step, idx) => (
-            <div
-              key={step.label}
-              className="rounded-2xl bg-[#f0f0f0] px-5 py-4"
-            >
-              <div className="flex items-start gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500 text-sm font-semibold text-white">
-                  {idx + 1}
-                </span>
-                <div>
-                  <p className="text-[15px] font-semibold text-[#111111]">
-                    {step.label}
-                  </p>
-                  <p className="mt-1 text-[14px] text-[#444444]">
-                    {step.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-10 flex items-center justify-between gap-4">
           <button
             type="button"
-            onClick={() => router.back()}
-            className="flex-1 border-b border-gray-300 py-3 text-center text-[17px] font-medium text-[#111111] hover:cursor-pointer"
+            onClick={() =>
+              router.push(`/project/participant/application/step-1/${id}`)
+            }
+            className="mb-3 w-full rounded-xl bg-[#b3e5fc] px-5 py-4 text-center text-[17px] font-semibold text-[#111111] transition hover:brightness-95 hover:cursor-pointer"
           >
-            Back
+            Join the project 🚀
           </button>
-          <button
-            type="button"
-            onClick={() => router.push(`/main/participant/join/${project.id}`)}
-            className="flex-2 rounded-xl bg-[#2e7d32] px-5 py-3 text-center text-[17px] font-semibold text-white transition hover:brightness-95 hover:cursor-pointer"
-          >
-            I understand
-          </button>
+          <p className="text-[13px] font-medium text-[#111111]">
+            * Pay your deposit after you are selected
+          </p>
         </div>
       </div>
     </main>

@@ -1,11 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 
-export type UploadKind =
-  | "profile-avatar"
-  | "project-thumbnail"
-  | "project-mp4"
-  | "project-video"
-  | "company-logo";
+export type UploadKind = "profile-avatar" | "project-thumbnail" | "project-m4";
 
 type PresignResponse = {
   uploadUrl: string;
@@ -15,7 +10,10 @@ type PresignResponse = {
   allowedMimeTypes: string[];
 };
 
-export async function uploadAsset(file: File, kind: UploadKind) {
+export async function uploadAsset(
+  file: File,
+  kind: "profile-avatar" | "project-thumbnail" | "project-mp4" | "company-logo",
+) {
   const presignRes = await apiFetch("/uploads/presign", {
     method: "POST",
     body: JSON.stringify({
