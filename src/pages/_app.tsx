@@ -87,6 +87,8 @@ export default function App({ Component, pageProps }: AppProps) {
     "/projects/public",
     "/project",
     "/main/participant/recruitment",
+    "/main/participant/project-detail",
+    "/main/participant/job-description",
   ];
 
   const guestAllowed = guestAllowedRoutes.some(
