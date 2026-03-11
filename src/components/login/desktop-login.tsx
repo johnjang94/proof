@@ -138,7 +138,7 @@ export default function DesktopLogin({
       <section className="flex w-1/2 items-center justify-center">
         <Link href="/">
           <Image
-            src="/logo+slogan+dark.png"
+            src="/slogan.png"
             alt="Slogan"
             width={1200}
             height={400}

@@ -35,7 +35,7 @@ export default function WelcomeToDo({ nextPath, onBeforeNavigate }: Props) {
     <div className="text-center my-10">
       <button
         className={[
-          "w-4/6 py-1 rounded-xl text-white transition",
+          "w-full py-1 rounded-xl text-white transition",
           leaving
             ? "bg-blue-300/60 cursor-not-allowed"
             : "bg-blue-300 hover:bg-blue-700 hover:cursor-pointer",
