@@ -8,28 +8,31 @@ import { apiFetch } from "@/lib/apiFetch";
 type ProjectItem = {
   id: string;
   projectName: string;
-  budgetRange: string;
-  timeInvestment: string;
   projectDescription: string;
-  goals: string;
+  expectedOutcome: string;
+  budgetAllowance: string;
+  projectDeadline: string;
   thumbnailUrl: string | null;
-  mp4Url: string | null;
+  videoUrl: string | null;
+  submissionType: string;
+  status: string;
   createdAt?: string;
-  status?: string;
-  client?: {
-    companyName?: string | null;
-    avatarUrl?: string | null;
-    companyLogoUrl?: string | null;
+  clientUser?: {
     firstName?: string | null;
     lastName?: string | null;
+    avatarUrl?: string | null;
+    company?: {
+      name?: string | null;
+      logoUrl?: string | null;
+    } | null;
   } | null;
 };
 
 function getHostedBy(project: ProjectItem) {
-  const companyName = project.client?.companyName?.trim();
+  const companyName = project.clientUser?.company?.name?.trim();
   if (companyName) return companyName;
 
-  const fullName = [project.client?.firstName, project.client?.lastName]
+  const fullName = [project.clientUser?.firstName, project.clientUser?.lastName]
     .filter(Boolean)
     .join(" ")
     .trim();
@@ -76,14 +79,6 @@ function formatRelativeTime(createdAt?: string) {
   if (weeks < 5) return `${weeks} week${weeks > 1 ? "s" : ""} ago`;
 
   return new Date(createdAt).toLocaleDateString();
-}
-
-function getThumbnail(project: ProjectItem) {
-  return project.thumbnailUrl || null;
-}
-
-function getCompanyMeta(project: ProjectItem) {
-  return project.budgetRange?.trim() || project.timeInvestment?.trim() || "";
 }
 
 function sortByCreatedAtDesc(items: ProjectItem[]) {
@@ -138,7 +133,7 @@ export default function Home() {
       }
     };
 
-    loadPublicProjects();
+    void loadPublicProjects();
   }, []);
 
   const visiblePublicProjects = useMemo(
@@ -147,7 +142,7 @@ export default function Home() {
   );
 
   const goToProjectDetail = (projectId: string) => {
-    router.push(`/main/participant/project/${projectId}`);
+    void router.push(`/main/participant/project/${projectId}`);
   };
 
   return (
@@ -175,9 +170,10 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
             {visiblePublicProjects.map((project) => {
               const hostedBy = getHostedBy(project);
-              const thumbnail = getThumbnail(project);
+              const thumbnail = project.thumbnailUrl || null;
               const relativeTime = formatRelativeTime(project.createdAt);
-              const companyMeta = getCompanyMeta(project);
+              const logoUrl = project.clientUser?.company?.logoUrl;
+              const avatarUrl = project.clientUser?.avatarUrl;
 
               return (
                 <article
@@ -203,10 +199,10 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-start gap-3 px-1">
-                    {project.client?.companyLogoUrl ? (
+                    {logoUrl ? (
                       <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-neutral-200 bg-white">
                         <Image
-                          src={project.client.companyLogoUrl}
+                          src={logoUrl}
                           alt={`${hostedBy} logo`}
                           fill
                           sizes="36px"
@@ -214,10 +210,10 @@ export default function Home() {
                           unoptimized
                         />
                       </div>
-                    ) : project.client?.avatarUrl ? (
+                    ) : avatarUrl ? (
                       <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
                         <Image
-                          src={project.client.avatarUrl}
+                          src={avatarUrl}
                           alt={`${hostedBy} avatar`}
                           fill
                           sizes="36px"
@@ -238,12 +234,6 @@ export default function Home() {
 
                       <div className="mt-2 flex min-w-0 items-center gap-2 text-[13px] text-neutral-500">
                         <span className="truncate">{hostedBy}</span>
-                        {companyMeta ? (
-                          <>
-                            <span className="text-neutral-300">·</span>
-                            <span className="truncate">{companyMeta}</span>
-                          </>
-                        ) : null}
                       </div>
 
                       <div className="mt-1 flex items-center gap-2 text-[12px] text-neutral-400">
