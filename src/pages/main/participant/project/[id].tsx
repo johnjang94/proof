@@ -360,7 +360,7 @@ export default function ParticipantProjectDetail() {
                 }
                 className="w-full rounded-xl bg-[#97baf4] px-5 py-3 text-[18px] font-medium text-[#111111] transition hover:brightness-[0.98] active:scale-[0.998] hover:cursor-pointer"
               >
-                View Job Description
+                About the role
               </button>
             </div>
           </section>
