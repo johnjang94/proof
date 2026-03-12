@@ -7,7 +7,6 @@ import { useRouter } from "next/router";
 import { useForm, useWatch } from "react-hook-form";
 import Image from "next/image";
 import { uploadAsset } from "@/services/upload/uploadAsset";
-import { apiFetch } from "@/lib/apiFetch";
 
 type FormValues = {
   username: string;
@@ -16,16 +15,13 @@ type FormValues = {
   retypePassword: string;
   firstName: string;
   lastName: string;
-  companyName: string;
-  avatar: FileList | null;
-  companyLogo: FileList | null;
+  avatar: File | null;
 };
 
 type ProfileBase = {
   username: string;
   first_name: string;
   last_name: string;
-  company_name: string;
   role: "client";
   avatar_url: string | null;
 };
@@ -43,14 +39,8 @@ export default function Client() {
   const [dragActive, setDragActive] = useState(false);
   const [avatarName, setAvatarName] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [companyLogoDragActive, setCompanyLogoDragActive] = useState(false);
-  const [companyLogoName, setCompanyLogoName] = useState<string | null>(null);
-  const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(
-    null,
-  );
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const companyLogoInputRef = useRef<HTMLInputElement | null>(null);
   const usernamePattern = useMemo(() => /^[A-Za-z]+$/, []);
 
   const {
@@ -71,47 +61,32 @@ export default function Client() {
       retypePassword: "",
       firstName: "",
       lastName: "",
-      companyName: "",
       avatar: null,
-      companyLogo: null,
     },
   });
+
+  useEffect(() => {
+    register("avatar", {
+      required: "Profile photo is required",
+      validate: (file) => {
+        if (!file) return "Profile photo is required";
+        if (!file.type.startsWith("image/")) return "Only image files allowed";
+        if (file.size > 5 * 1024 * 1024) return "Max 5MB";
+        return true;
+      },
+    });
+  }, [register]);
 
   const passwordValue = useWatch({ control, name: "password" });
 
   useEffect(() => {
     return () => {
       if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-      if (companyLogoPreview) URL.revokeObjectURL(companyLogoPreview);
     };
-  }, [avatarPreview, companyLogoPreview]);
-
-  const avatarRegister = register("avatar", {
-    required: "Profile photo is required",
-    validate: (files) => {
-      const file = files?.item?.(0);
-      if (!file) return "Profile photo is required";
-      if (!file.type.startsWith("image/")) return "Only image files allowed";
-      if (file.size > 5 * 1024 * 1024) return "Max 5MB";
-      return true;
-    },
-  });
-
-  const companyLogoRegister = register("companyLogo", {
-    required: "Company logo is required",
-    validate: (files) => {
-      const file = files?.item?.(0);
-      if (!file) return "Company logo is required";
-      if (!file.type.startsWith("image/")) return "Only image files allowed";
-      if (file.size > 5 * 1024 * 1024) return "Max 5MB";
-      return true;
-    },
-  });
+  }, [avatarPreview]);
 
   const setAvatarFromFile = async (file: File) => {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    setValue("avatar", dt.files, {
+    setValue("avatar", file, {
       shouldValidate: true,
       shouldDirty: true,
       shouldTouch: true,
@@ -124,22 +99,6 @@ export default function Client() {
     setAvatarName(file.name);
   };
 
-  const setCompanyLogoFromFile = async (file: File) => {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    setValue("companyLogo", dt.files, {
-      shouldValidate: true,
-      shouldDirty: true,
-      shouldTouch: true,
-    });
-    await trigger("companyLogo");
-    setCompanyLogoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
-    setCompanyLogoName(file.name);
-  };
-
   const onDrop: React.DragEventHandler<HTMLDivElement> = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -149,33 +108,13 @@ export default function Client() {
     await setAvatarFromFile(file);
   };
 
-  const onCompanyLogoDrop: React.DragEventHandler<HTMLDivElement> = async (
-    e,
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCompanyLogoDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    await setCompanyLogoFromFile(file);
-  };
-
   const onBrowsePick: React.ChangeEventHandler<HTMLInputElement> = async (
     e,
   ) => {
-    avatarRegister.onChange(e);
     const file = e.target.files?.[0];
     if (!file) return;
     await setAvatarFromFile(file);
-  };
-
-  const onCompanyLogoPick: React.ChangeEventHandler<HTMLInputElement> = async (
-    e,
-  ) => {
-    companyLogoRegister.onChange(e);
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await setCompanyLogoFromFile(file);
+    e.target.value = "";
   };
 
   const checkUsernameTaken = async (username: string) => {
@@ -184,6 +123,7 @@ export default function Client() {
       .select("username")
       .eq("username", username)
       .maybeSingle();
+
     if (error) throw new Error(error.message);
     return !!data;
   };
@@ -194,13 +134,16 @@ export default function Client() {
       const { error } = await supabase
         .from("profiles")
         .upsert(payload, { onConflict: "id" });
+
       if (error) throw new Error(error.message);
       return;
     }
+
     const payload: ProfileByUserId = { user_id: userId, ...base };
     const { error } = await supabase
       .from("profiles")
       .upsert(payload, { onConflict: "user_id" });
+
     if (error) throw new Error(error.message);
   };
 
@@ -212,7 +155,6 @@ export default function Client() {
     const email = values.email.trim();
     const firstName = values.firstName.trim();
     const lastName = values.lastName.trim();
-    const companyName = values.companyName.trim();
 
     setCheckingUsername(true);
 
@@ -235,7 +177,6 @@ export default function Client() {
               username,
               first_name: firstName,
               last_name: lastName,
-              company_name: companyName,
               role: "client",
             },
           },
@@ -252,39 +193,30 @@ export default function Client() {
         return;
       }
 
-      const avatarFile = values.avatar?.item?.(0) ?? null;
-      const avatarUrl = avatarFile
-        ? await uploadAsset(avatarFile, "profile-avatar")
-        : null;
-
-      const companyLogoFile = values.companyLogo?.item?.(0) ?? null;
-      const companyLogoUrl = companyLogoFile
-        ? await uploadAsset(companyLogoFile, "company-logo")
+      const avatarUrl = values.avatar
+        ? await uploadAsset(values.avatar, "profile-avatar")
         : null;
 
       await upsertProfile(user.id, {
         username,
         first_name: firstName,
         last_name: lastName,
-        company_name: companyName,
         role: "client",
         avatar_url: avatarUrl,
       });
 
-      await apiFetch("/auth/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      sessionStorage.setItem(
+        "signup_partial",
+        JSON.stringify({
+          userId: user.id,
           username,
           firstName,
           lastName,
-          companyName,
-          avatarUrl: avatarUrl ?? null,
-          companyLogoUrl: companyLogoUrl ?? null,
+          avatarUrl,
         }),
-      });
+      );
 
-      router.replace("/main/client/landing");
+      router.replace("/sign-up/company-info");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong";
@@ -307,52 +239,54 @@ export default function Client() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              First Name
-            </label>
-            <input
-              type="text"
-              autoComplete="given-name"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="Enter first name"
-              {...register("firstName", {
-                required: "First name is required",
-                validate: (value) => {
-                  if (!value.trim()) return "First name is required";
-                  return true;
-                },
-              })}
-            />
-            {errors.firstName && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.firstName.message}
-              </p>
-            )}
-          </div>
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-800">
+                First Name
+              </label>
+              <input
+                type="text"
+                autoComplete="given-name"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
+                placeholder="Enter first name"
+                {...register("firstName", {
+                  required: "First name is required",
+                  validate: (value) => {
+                    if (!value.trim()) return "First name is required";
+                    return true;
+                  },
+                })}
+              />
+              {errors.firstName && (
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.firstName.message}
+                </p>
+              )}
+            </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              Last Name
-            </label>
-            <input
-              type="text"
-              autoComplete="family-name"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="Enter last name"
-              {...register("lastName", {
-                required: "Last name is required",
-                validate: (value) => {
-                  if (!value.trim()) return "Last name is required";
-                  return true;
-                },
-              })}
-            />
-            {errors.lastName && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.lastName.message}
-              </p>
-            )}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-800">
+                Last Name
+              </label>
+              <input
+                type="text"
+                autoComplete="family-name"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
+                placeholder="Enter last name"
+                {...register("lastName", {
+                  required: "Last name is required",
+                  validate: (value) => {
+                    if (!value.trim()) return "Last name is required";
+                    return true;
+                  },
+                })}
+              />
+              {errors.lastName && (
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.lastName.message}
+                </p>
+              )}
+            </div>
           </div>
 
           <div>
@@ -369,8 +303,9 @@ export default function Client() {
                 validate: (value) => {
                   const trimmed = value.trim();
                   if (!trimmed) return "Username is required";
-                  if (!usernamePattern.test(trimmed))
+                  if (!usernamePattern.test(trimmed)) {
                     return "Username must contain letters only";
+                  }
                   if (trimmed.length < 2) return "Minimum 2 characters";
                   if (trimmed.length > 30) return "Maximum 30 characters";
                   return true;
@@ -459,15 +394,10 @@ export default function Client() {
               Profile Image
             </label>
             <input
-              ref={(el) => {
-                avatarRegister.ref(el);
-                fileInputRef.current = el;
-              }}
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               className="hidden"
-              name={avatarRegister.name}
-              onBlur={avatarRegister.onBlur}
               onChange={onBrowsePick}
             />
             <div
@@ -487,7 +417,11 @@ export default function Client() {
                 setDragActive(false);
               }}
               onDrop={onDrop}
-              className={`rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${dragActive ? "border-black bg-gray-50" : "border-gray-300 bg-white"}`}
+              className={`rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${
+                dragActive
+                  ? "border-black bg-gray-50"
+                  : "border-gray-300 bg-white"
+              }`}
             >
               {avatarPreview ? (
                 <div className="flex flex-col items-center gap-3">
@@ -525,101 +459,6 @@ export default function Client() {
             )}
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              Company Name
-            </label>
-            <input
-              type="text"
-              autoComplete="organization"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="Enter company name"
-              {...register("companyName", {
-                required: "Company name is required",
-                validate: (value) => {
-                  if (!value.trim()) return "Company name is required";
-                  return true;
-                },
-              })}
-            />
-            {errors.companyName && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.companyName.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
-              Company Logo
-            </label>
-            <input
-              ref={(el) => {
-                companyLogoRegister.ref(el);
-                companyLogoInputRef.current = el;
-              }}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              name={companyLogoRegister.name}
-              onBlur={companyLogoRegister.onBlur}
-              onChange={onCompanyLogoPick}
-            />
-            <div
-              onDragEnter={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCompanyLogoDragActive(true);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCompanyLogoDragActive(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCompanyLogoDragActive(false);
-              }}
-              onDrop={onCompanyLogoDrop}
-              className={`rounded-2xl border-2 border-dashed px-5 py-6 text-center transition ${companyLogoDragActive ? "border-black bg-gray-50" : "border-gray-300 bg-white"}`}
-            >
-              {companyLogoPreview ? (
-                <div className="flex flex-col items-center gap-3">
-                  <Image
-                    src={companyLogoPreview}
-                    alt="Company logo preview"
-                    width={96}
-                    height={96}
-                    className="rounded-xl object-cover"
-                  />
-                  <p className="text-sm text-gray-700">{companyLogoName}</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-800">
-                    Drag and drop your company logo here
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    PNG, JPG, WEBP up to 5MB
-                  </p>
-                </div>
-              )}
-              <button
-                type="button"
-                className="mt-4 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
-                onClick={() => companyLogoInputRef.current?.click()}
-              >
-                Browse file
-              </button>
-            </div>
-            {errors.companyLogo && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.companyLogo.message}
-              </p>
-            )}
-          </div>
-
           {authError && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {authError}
@@ -633,7 +472,7 @@ export default function Client() {
           >
             {isSubmitting || checkingUsername
               ? "Creating account..."
-              : "Create account"}
+              : "Continue"}
           </button>
         </form>
       </div>
