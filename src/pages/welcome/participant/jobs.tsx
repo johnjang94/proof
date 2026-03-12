@@ -1,7 +1,7 @@
 "use client";
 
 import WelcomeToDo from "@/components/welcome/welcome-todo";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRequireSession } from "@/lib/auth/useRequireSession";
 
 type Job = {
@@ -73,6 +73,14 @@ export default function OpenPositions() {
   const [selectedLevel, setSelectedLevel] = useState("All");
   const [selectedEmploymentType, setSelectedEmploymentType] = useState("All");
   const [selectedLocation, setSelectedLocation] = useState("All");
+  const [fadeIn, setFadeIn] = useState(false);
+  const [fadingOut, setFadingOut] = useState(false);
+
+  useEffect(() => {
+    if (!ok) return;
+    const t = window.setTimeout(() => setFadeIn(true), 50);
+    return () => window.clearTimeout(t);
+  }, [ok]);
 
   if (!ok) return null;
 
@@ -90,8 +98,19 @@ export default function OpenPositions() {
     return true;
   });
 
+  const handleBeforeNavigate = async () => {
+    setFadingOut(true);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  };
+
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-20 my-5">
+    <div
+      style={{ transition: "opacity 2s ease-in-out" }}
+      className={[
+        "mx-auto max-w-5xl px-4 pb-20 my-5",
+        fadeIn && !fadingOut ? "opacity-100" : "opacity-0",
+      ].join(" ")}
+    >
       <div className="mb-6 flex justify-center">
         <div className="rounded-xl border border-neutral-200 bg-white px-6 py-2.5 text-sm text-neutral-700 shadow-sm">
           Once you are done, you get opportunities to apply to real jobs
@@ -212,7 +231,10 @@ export default function OpenPositions() {
           </div>
         </div>
       </div>
-      <WelcomeToDo nextPath="/welcome/participant/ready" />
+      <WelcomeToDo
+        nextPath="/welcome/participant/ready"
+        onBeforeNavigate={handleBeforeNavigate}
+      />
     </div>
   );
 }

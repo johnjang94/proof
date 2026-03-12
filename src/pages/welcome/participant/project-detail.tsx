@@ -2,7 +2,7 @@
 
 import WelcomeToDo from "@/components/welcome/welcome-todo";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRequireSession } from "@/lib/auth/useRequireSession";
 import { CgProfile } from "react-icons/cg";
 import { FaFire } from "react-icons/fa";
@@ -96,6 +96,14 @@ export default function DemoProjectDetail() {
   const ok = useRequireSession("/login?role=participant");
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [fadeIn, setFadeIn] = useState(false);
+  const [fadingOut, setFadingOut] = useState(false);
+
+  useEffect(() => {
+    if (!ok) return;
+    const t = window.setTimeout(() => setFadeIn(true), 50);
+    return () => window.clearTimeout(t);
+  }, [ok]);
 
   if (!ok) return null;
 
@@ -110,8 +118,19 @@ export default function DemoProjectDetail() {
     }, 800);
   };
 
+  const handleBeforeNavigate = async () => {
+    setFadingOut(true);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  };
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-16 my-5">
+    <div
+      style={{ transition: "opacity 2s ease-in-out" }}
+      className={[
+        "mx-auto w-full max-w-5xl px-4 pb-16 my-5",
+        fadeIn && !fadingOut ? "opacity-100" : "opacity-0",
+      ].join(" ")}
+    >
       <div className="mb-4 rounded-full border border-gray-300 bg-white px-5 py-2 text-sm text-neutral-700 shadow-sm mx-auto text-center">
         ..and you will learn further regarding the project as you go through
       </div>
@@ -211,7 +230,10 @@ export default function DemoProjectDetail() {
           ))}
         </div>
       </div>
-      <WelcomeToDo nextPath="/welcome/participant/zoom-call" />
+      <WelcomeToDo
+        nextPath="/welcome/participant/zoom-call"
+        onBeforeNavigate={handleBeforeNavigate}
+      />
     </div>
   );
 }

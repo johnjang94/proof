@@ -1,10 +1,11 @@
 "use client";
 
+import { supabase } from "@/lib/supabaseInstance";
+import { apiFetch } from "@/lib/apiFetch";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useForm, useWatch } from "react-hook-form";
-import { supabase } from "@/lib/supabaseInstance";
-
 import Image from "next/image";
 import { uploadAsset } from "@/services/upload/uploadAsset";
 
@@ -39,6 +40,7 @@ export default function Participant() {
   const [dragActive, setDragActive] = useState(false);
   const [avatarName, setAvatarName] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [fadingOut, setFadingOut] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const usernamePattern = useMemo(() => /^[A-Za-z]+$/, []);
@@ -65,10 +67,7 @@ export default function Participant() {
     },
   });
 
-  const passwordValue = useWatch({
-    control,
-    name: "password",
-  });
+  const passwordValue = useWatch({ control, name: "password" });
 
   useEffect(() => {
     return () => {
@@ -89,20 +88,16 @@ export default function Participant() {
   const setAvatarFromFile = async (file: File) => {
     const dt = new DataTransfer();
     dt.items.add(file);
-
     setValue("avatar", dt.files, {
       shouldValidate: true,
       shouldDirty: true,
       shouldTouch: true,
     });
-
     await trigger("avatar");
-
     setAvatarPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
     });
-
     setAvatarName(file.name);
   };
 
@@ -110,10 +105,8 @@ export default function Participant() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
-
     await setAvatarFromFile(file);
   };
 
@@ -121,10 +114,8 @@ export default function Participant() {
     e,
   ) => {
     avatarRegister.onChange(e);
-
     const file = e.target.files?.[0];
     if (!file) return;
-
     await setAvatarFromFile(file);
   };
 
@@ -134,9 +125,7 @@ export default function Participant() {
       .select("username")
       .eq("username", username)
       .maybeSingle();
-
     if (error) throw new Error(error.message);
-
     return !!data;
   };
 
@@ -146,16 +135,13 @@ export default function Participant() {
       const { error } = await supabase
         .from("profiles")
         .upsert(payload, { onConflict: "id" });
-
       if (error) throw new Error(error.message);
       return;
     }
-
     const payload: ProfileByUserId = { user_id: userId, ...base };
     const { error } = await supabase
       .from("profiles")
       .upsert(payload, { onConflict: "user_id" });
-
     if (error) throw new Error(error.message);
   };
 
@@ -172,7 +158,6 @@ export default function Participant() {
 
     try {
       const taken = await checkUsernameTaken(username);
-
       if (taken) {
         setError("username", {
           type: "manual",
@@ -201,7 +186,6 @@ export default function Participant() {
       }
 
       const user = signUpData.user;
-
       if (!user) {
         setAuthError("Sign up succeeded but user was not returned.");
         return;
@@ -218,6 +202,19 @@ export default function Participant() {
         avatar_url: avatarUrl,
       });
 
+      await apiFetch("/auth/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          firstName,
+          lastName,
+          avatarUrl: avatarUrl ?? null,
+        }),
+      });
+
+      setFadingOut(true);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       router.replace("/welcome/participant/introduction");
     } catch (error) {
       setAuthError(
@@ -229,7 +226,12 @@ export default function Participant() {
   };
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-10">
+    <main
+      className={[
+        "mx-auto max-w-xl px-6 py-10 transition-opacity duration-1000 ease-in-out",
+        fadingOut ? "opacity-0" : "opacity-100",
+      ].join(" ")}
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -342,7 +344,6 @@ export default function Participant() {
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Profile photo</label>
-
           <div
             className={[
               "rounded-xl border p-4 transition",
@@ -388,7 +389,6 @@ export default function Participant() {
                   <div className="h-full w-full bg-gray-100" />
                 )}
               </div>
-
               {avatarName ? (
                 <p className="truncate text-sm font-medium">{avatarName}</p>
               ) : (
@@ -401,7 +401,6 @@ export default function Participant() {
                       PNG, JPG, WEBP up to 5MB
                     </p>
                   </div>
-
                   <button
                     type="button"
                     className="rounded-lg border px-3 py-2 text-sm hover:cursor-pointer"
@@ -416,7 +415,6 @@ export default function Participant() {
                 </>
               )}
             </div>
-
             <input
               {...avatarRegister}
               ref={(el) => {
@@ -429,7 +427,6 @@ export default function Participant() {
               onChange={onBrowsePick}
             />
           </div>
-
           {errors.avatar?.message ? (
             <p className="text-sm text-red-600">
               {String(errors.avatar.message)}
@@ -441,7 +438,7 @@ export default function Participant() {
 
         <button
           type="submit"
-          disabled={!isValid || isSubmitting || checkingUsername}
+          disabled={!isValid || isSubmitting || checkingUsername || fadingOut}
           className="w-full rounded-xl bg-black px-4 py-3 text-white disabled:opacity-50 hover:cursor-pointer"
         >
           {isSubmitting || checkingUsername

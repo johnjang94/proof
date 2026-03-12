@@ -14,6 +14,7 @@ export default function Introduction() {
   const [fullName, setFullName] = useState<string | null>(null);
   const [step, setStep] = useState<Step>(0);
   const [fadeOut, setFadeOut] = useState(false);
+  const [fadeIn, setFadeIn] = useState(false);
 
   const timersRef = useRef<number[]>([]);
 
@@ -42,7 +43,6 @@ export default function Introduction() {
           setFadeOut(true);
         }, 6000),
       );
-
       timersRef.current.push(
         window.setTimeout(() => {
           if (!alive) return;
@@ -72,6 +72,10 @@ export default function Introduction() {
         .join(" ");
       setFullName(name || null);
 
+      window.setTimeout(() => {
+        if (alive) setFadeIn(true);
+      }, 50);
+
       startTimeline();
     };
 
@@ -89,8 +93,8 @@ export default function Introduction() {
     <div
       className={[
         "relative flex min-h-[70vh] flex-col items-center justify-center text-center",
-        "transition-opacity duration-3000 ease-in-out",
-        fadeOut ? "opacity-0" : "opacity-100",
+        "transition-opacity duration-1000 ease-in-out",
+        fadeOut ? "opacity-0" : fadeIn ? "opacity-100" : "opacity-0",
       ].join(" ")}
     >
       <h1

@@ -2,7 +2,7 @@
 
 import WelcomeToDo from "@/components/welcome/welcome-todo";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRequireSession } from "@/lib/auth/useRequireSession";
 
 type Badge = "Demo" | "New" | null;
@@ -232,11 +232,30 @@ function ProjectCard({ project }: { project: Project }) {
 export default function Todo() {
   const ok = useRequireSession("/login?role=participant");
   const [tooltip, setTooltip] = useState(true);
+  const [fadeIn, setFadeIn] = useState(false);
+  const [fadingOut, setFadingOut] = useState(false);
+
+  useEffect(() => {
+    if (!ok) return;
+    const t = window.setTimeout(() => setFadeIn(true), 50);
+    return () => window.clearTimeout(t);
+  }, [ok]);
 
   if (!ok) return null;
 
+  const handleBeforeNavigate = async () => {
+    setFadingOut(true);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  };
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-16 my-5">
+    <div
+      style={{ transition: "opacity 2s ease-in-out" }}
+      className={[
+        "mx-auto w-full max-w-5xl px-4 pb-16 my-5",
+        fadeIn && !fadingOut ? "opacity-100" : "opacity-0",
+      ].join(" ")}
+    >
       {tooltip && (
         <div className="relative mb-6 flex items-center justify-center">
           <div className="rounded-xl border border-neutral-200 bg-white px-5 py-2.5 text-sm text-neutral-700 shadow-sm">
@@ -260,7 +279,10 @@ export default function Todo() {
           <ProjectCard key={project.id} project={project} />
         ))}
       </div>
-      <WelcomeToDo nextPath="/welcome/participant/project-detail" />
+      <WelcomeToDo
+        nextPath="/welcome/participant/project-detail"
+        onBeforeNavigate={handleBeforeNavigate}
+      />
     </div>
   );
 }

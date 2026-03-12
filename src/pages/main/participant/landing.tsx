@@ -229,6 +229,7 @@ export default function Home({ role }: Props) {
   }, []);
 
   useEffect(() => {
+    if (role === null) return;
     if (!isParticipant) return;
 
     const loadAppliedProjects = async () => {
@@ -249,7 +250,7 @@ export default function Home({ role }: Props) {
     };
 
     void loadAppliedProjects();
-  }, [isParticipant]);
+  }, [isParticipant, role]);
 
   const appliedIds = useMemo(
     () => new Set(appliedProjects.map((p) => p.id)),

@@ -20,7 +20,7 @@ export default function Ready() {
   return (
     <div
       className={[
-        "my-40 text-center space-y-20 transition-opacity duration-500 ease-in-out",
+        "my-40 text-center space-y-20 transition-opacity duration-500 ease-in-out px-96",
         visible ? "opacity-100" : "opacity-0",
       ].join(" ")}
     >

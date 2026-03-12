@@ -2,6 +2,7 @@
 
 import WelcomeToDo from "@/components/welcome/welcome-todo";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import { useRequireSession } from "@/lib/auth/useRequireSession";
 
 type Participant = {
@@ -57,11 +58,30 @@ const mockParticipants: Participant[] = [
 
 export default function ZoomCall() {
   const ok = useRequireSession("/login?role=participant");
+  const [fadeIn, setFadeIn] = useState(false);
+  const [fadingOut, setFadingOut] = useState(false);
+
+  useEffect(() => {
+    if (!ok) return;
+    const t = window.setTimeout(() => setFadeIn(true), 50);
+    return () => window.clearTimeout(t);
+  }, [ok]);
 
   if (!ok) return null;
 
+  const handleBeforeNavigate = async () => {
+    setFadingOut(true);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  };
+
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-20 my-5">
+    <div
+      style={{ transition: "opacity 2s ease-in-out" }}
+      className={[
+        "mx-auto max-w-4xl px-4 pb-20 my-5",
+        fadeIn && !fadingOut ? "opacity-100" : "opacity-0",
+      ].join(" ")}
+    >
       <div className="mb-6 flex justify-center">
         <div className="rounded-xl border border-neutral-200 bg-white px-6 py-2.5 text-sm text-neutral-700 shadow-sm">
           ...and you will be working with a group of other professionals who
@@ -179,7 +199,10 @@ export default function ZoomCall() {
           </button>
         </div>
       </div>
-      <WelcomeToDo nextPath="/welcome/participant/jobs" />
+      <WelcomeToDo
+        nextPath="/welcome/participant/jobs"
+        onBeforeNavigate={handleBeforeNavigate}
+      />
     </div>
   );
 }
