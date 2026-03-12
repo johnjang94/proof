@@ -87,9 +87,10 @@ export default function Client() {
   }, [avatarPreview, companyLogoPreview]);
 
   const avatarRegister = register("avatar", {
+    required: "Profile photo is required",
     validate: (files) => {
       const file = files?.item?.(0);
-      if (!file) return true;
+      if (!file) return "Profile photo is required";
       if (!file.type.startsWith("image/")) return "Only image files allowed";
       if (file.size > 5 * 1024 * 1024) return "Max 5MB";
       return true;
@@ -97,9 +98,10 @@ export default function Client() {
   });
 
   const companyLogoRegister = register("companyLogo", {
+    required: "Company logo is required",
     validate: (files) => {
       const file = files?.item?.(0);
-      if (!file) return true;
+      if (!file) return "Company logo is required";
       if (!file.type.startsWith("image/")) return "Only image files allowed";
       if (file.size > 5 * 1024 * 1024) return "Max 5MB";
       return true;
@@ -271,12 +273,14 @@ export default function Client() {
 
       await apiFetch("/auth/sync", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          username,
           firstName,
           lastName,
           companyName,
-          avatarUrl,
-          companyLogoUrl,
+          avatarUrl: avatarUrl ?? null,
+          companyLogoUrl: companyLogoUrl ?? null,
         }),
       });
 
@@ -303,7 +307,6 @@ export default function Client() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* 1. First Name */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               First Name
@@ -328,7 +331,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 2. Last Name */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Last Name
@@ -353,7 +355,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 3. Username */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Username
@@ -383,7 +384,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 4. Email */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Email
@@ -408,7 +408,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 5. Password */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Password
@@ -433,7 +432,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 6. Retype Password */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Retype Password
@@ -456,7 +454,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 7. Profile Image */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Profile Image
@@ -528,7 +525,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 8. Company Name */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Company Name
@@ -553,7 +549,6 @@ export default function Client() {
             )}
           </div>
 
-          {/* 9. Company Logo */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Company Logo

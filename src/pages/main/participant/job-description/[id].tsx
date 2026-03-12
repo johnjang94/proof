@@ -81,6 +81,7 @@ export default function JobDescription({ role }: Props) {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
 
   useEffect(() => {
     if (!router.isReady || !id || typeof id !== "string") return;
@@ -134,6 +135,31 @@ export default function JobDescription({ role }: Props) {
       mounted = false;
     };
   }, [router.isReady, id]);
+
+  useEffect(() => {
+    if (role !== "participant" || !id || typeof id !== "string") return;
+
+    let mounted = true;
+
+    const checkApplied = async () => {
+      try {
+        const res = await apiFetch("/project-applications/mine", {
+          method: "GET",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const items: { id: string }[] = Array.isArray(json) ? json : [];
+        if (mounted) {
+          setHasApplied(items.some((p) => p.id === id));
+        }
+      } catch {}
+    };
+
+    void checkApplied();
+    return () => {
+      mounted = false;
+    };
+  }, [role, id]);
 
   const bannerUrl = useMemo(
     () => project?.thumbnailUrl || FALLBACK_BANNER,
@@ -274,7 +300,7 @@ export default function JobDescription({ role }: Props) {
               <div className="space-y-7 pt-1">
                 <div className="flex items-start justify-between gap-4">
                   <span className="text-[16px] text-[#333333] md:text-[18px]">
-                    Looking for
+                    {hasApplied ? "Applied as" : "Looking for"}
                   </span>
                   <span className="text-right text-[22px] font-medium leading-tight text-[#111111] md:text-[28px]">
                     {lookingForLabel}
@@ -301,13 +327,19 @@ export default function JobDescription({ role }: Props) {
               </div>
 
               <div className="mt-8">
-                <button
-                  type="button"
-                  onClick={onApply}
-                  className="w-full rounded-xl bg-[#97baf4] px-5 py-3 text-[18px] font-medium text-[#111111] transition hover:brightness-[0.98] active:scale-[0.998] hover:cursor-pointer"
-                >
-                  Apply to Join
-                </button>
+                {hasApplied ? (
+                  <div className="w-full rounded-xl bg-[#f0f0f0] px-5 py-3 text-center text-[18px] font-medium text-[#888888]">
+                    Under Review
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onApply}
+                    className="w-full rounded-xl bg-[#97baf4] px-5 py-3 text-[18px] font-medium text-[#111111] transition hover:brightness-[0.98] active:scale-[0.998] hover:cursor-pointer"
+                  >
+                    Apply to Join
+                  </button>
+                )}
               </div>
             </section>
           </div>

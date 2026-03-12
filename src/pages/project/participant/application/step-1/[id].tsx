@@ -15,19 +15,13 @@ type ProjectDetail = {
   viewCount?: number;
   companyName?: string | null;
   companyLogoUrl?: string | null;
-  positions?: string[];
-  submissionType?: string | null;
+  position?: string | null;
 };
 
 const FALLBACK_BANNER =
   "https://images.unsplash.com/photo-1519003722824-194d4455a60c?q=80&w=1600&auto=format&fit=crop";
 
-const STEPS = [
-  {
-    step: 1,
-    label: "Fill out the application",
-    description: null,
-  },
+const BOTTOM_STEPS = [
   {
     step: 2,
     label: "Interview",
@@ -41,12 +35,6 @@ const STEPS = [
   },
 ];
 
-const PORTFOLIO_OCCUPATIONS = new Set([
-  "designer",
-  "developer",
-  "photographer",
-]);
-
 function isPopularProject(viewCount?: number) {
   return (viewCount ?? 0) >= 10;
 }
@@ -58,8 +46,14 @@ function isNewProject(createdAt?: string) {
   return Date.now() - created <= 7 * 24 * 60 * 60 * 1000;
 }
 
-function showPortfolioField(position: string): boolean {
-  return PORTFOLIO_OCCUPATIONS.has(position.toLowerCase());
+function getMimeType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "doc") return "application/msword";
+  if (ext === "docx")
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  return file.type;
 }
 
 export default function FirstStep() {
@@ -74,7 +68,6 @@ export default function FirstStep() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [position, setPosition] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [portfolioLink, setPortfolioLink] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -112,8 +105,7 @@ export default function FirstStep() {
           viewCount: item?.viewCount ?? 0,
           companyName: item?.clientUser?.company?.name ?? null,
           companyLogoUrl: item?.clientUser?.company?.logoUrl ?? null,
-          positions: item?.positions ?? [],
-          submissionType: item?.submissionType ?? "self-guided",
+          position: item?.position ?? null,
         });
       } catch (error) {
         if (!mounted) return;
@@ -143,7 +135,6 @@ export default function FirstStep() {
     () => !popular && isNewProject(project?.createdAt),
     [popular, project?.createdAt],
   );
-  const showPortfolio = useMemo(() => showPortfolioField(position), [position]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -172,10 +163,6 @@ export default function FirstStep() {
       setSubmitError("Please enter your email.");
       return;
     }
-    if (!position) {
-      setSubmitError("Please select a position.");
-      return;
-    }
     if (!resumeFile) {
       setSubmitError("Please upload your resume.");
       return;
@@ -187,25 +174,59 @@ export default function FirstStep() {
 
     try {
       setSubmitting(true);
-      const formData = new FormData();
-      formData.append("firstName", firstName);
-      formData.append("lastName", lastName);
-      formData.append("email", email);
-      formData.append("position", position);
-      formData.append("resume", resumeFile);
-      if (portfolioLink) formData.append("portfolioLink", portfolioLink);
 
-      const res = await apiFetch(`/projects/${id}/apply`, {
+      const mimeType = getMimeType(resumeFile);
+
+      const presignRes = await apiFetch("/uploads/presign", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "resume",
+          filename: resumeFile.name,
+          contentType: mimeType,
+        }),
       });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Submission failed (${res.status}). ${text}`);
+      if (!presignRes.ok) {
+        throw new Error("Failed to get upload URL.");
       }
 
-      router.push(`/main/participant/project/${id}/apply/success`);
+      const { uploadUrl, key } = await presignRes.json();
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": mimeType },
+        body: resumeFile,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error("Failed to upload resume.");
+      }
+
+      const applyRes = await apiFetch("/project-applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: id,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          resumeR2Key: key,
+          ...(portfolioLink.trim() && { portfolioLink: portfolioLink.trim() }),
+        }),
+      });
+
+      const applyData = await applyRes.json().catch(() => ({}));
+
+      if (!applyRes.ok) {
+        throw new Error(applyData?.message ?? "Failed to submit application.");
+      }
+
+      const position = applyData?.position ?? "";
+
+      router.push(
+        `/project/participant/application/success/${id}?position=${encodeURIComponent(position)}`,
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Submission failed.",
@@ -353,20 +374,16 @@ export default function FirstStep() {
 
           <div className="mb-4">
             <label className="mb-1 block text-[13px] text-[#111111]">
-              Position you are interested (please choose 1)
+              Portfolio Link{" "}
+              <span className="text-[12px] text-[#aaa]">(optional)</span>
             </label>
-            <select
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-[14px] text-[#444444] outline-none focus:border-gray-400"
-            >
-              <option value="">Please choose</option>
-              {(project.positions ?? []).map((pos) => (
-                <option key={pos} value={pos}>
-                  {pos}
-                </option>
-              ))}
-            </select>
+            <input
+              type="url"
+              value={portfolioLink}
+              onChange={(e) => setPortfolioLink(e.target.value)}
+              placeholder="https://"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-[14px] outline-none focus:border-gray-400"
+            />
           </div>
 
           <div className="mb-4">
@@ -411,21 +428,6 @@ export default function FirstStep() {
               )}
             </div>
           </div>
-
-          {showPortfolio && (
-            <div className="mb-4">
-              <label className="mb-1 block text-[13px] text-[#111111]">
-                Portfolio link (only show this with certain occupations)
-              </label>
-              <input
-                type="url"
-                value={portfolioLink}
-                onChange={(e) => setPortfolioLink(e.target.value)}
-                placeholder="i.e. https://www.yourportfolio.com/"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-[14px] text-[#444] placeholder-gray-400 outline-none focus:border-gray-400"
-              />
-            </div>
-          )}
 
           <div className="mb-4 rounded-xl bg-[#fff8f8] px-4 py-3">
             <p className="mb-1 text-[13px] font-semibold text-red-500">
@@ -473,8 +475,8 @@ export default function FirstStep() {
           </button>
         </div>
 
-        <div className="space-y-3">
-          {STEPS.slice(1).map((s) => (
+        <div className="space-y-3 mb-10">
+          {BOTTOM_STEPS.map((s) => (
             <div key={s.step} className="rounded-2xl bg-[#f0f0f0] px-5 py-4">
               <div className="flex items-start gap-3">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#d0d0d0] text-sm font-semibold text-[#555]">
@@ -484,11 +486,9 @@ export default function FirstStep() {
                   <p className="text-[15px] font-semibold text-[#111111]">
                     {s.label}
                   </p>
-                  {s.description && (
-                    <p className="mt-1 text-[14px] text-[#444444]">
-                      {s.description}
-                    </p>
-                  )}
+                  <p className="mt-1 text-[14px] text-[#444444]">
+                    {s.description}
+                  </p>
                 </div>
               </div>
             </div>
