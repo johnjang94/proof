@@ -42,6 +42,89 @@ function getStatusIndex(status?: string) {
   return 0;
 }
 
+function ProjectList({ projects }: { projects: ProjectCard[] }) {
+  const router = useRouter();
+
+  return (
+    <div className="space-y-6">
+      {projects.map((project) => {
+        const statusIndex = getStatusIndex(project.status);
+
+        return (
+          <article
+            key={project.id}
+            className="overflow-hidden rounded-xl border border-gray-300 bg-white"
+          >
+            <div className="flex">
+              <div className="relative w-55 bg-gray-100">
+                {project.thumbnailUrl ? (
+                  <Image
+                    src={project.thumbnailUrl}
+                    alt={project.projectName}
+                    fill
+                    sizes="220px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                    No thumbnail
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-1 flex-col p-5">
+                <div className="flex justify-between">
+                  <div>
+                    <h3 className="text-[22px] font-medium">
+                      {project.projectName}
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-700">
+                      {project.timeInvestment} · {project.budgetRange}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => router.push(`/project/client/${project.id}`)}
+                    className="rounded-md bg-gray-100 px-4 py-2 text-sm hover:bg-gray-200 hover:cursor-pointer"
+                  >
+                    View more
+                  </button>
+                </div>
+
+                <p className="mt-3 text-sm text-gray-700">
+                  {project.projectDescription}
+                </p>
+
+                <div className="mt-6 grid grid-cols-5 gap-2 border-t pt-4 text-sm">
+                  {STATUS_STEPS.map((step, index) => {
+                    const active = index <= statusIndex;
+                    const current = index === statusIndex;
+
+                    return (
+                      <div
+                        key={step}
+                        className={`text-center ${
+                          current
+                            ? "font-semibold text-black"
+                            : active
+                              ? "text-gray-800"
+                              : "text-gray-400"
+                        }`}
+                      >
+                        {step}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Main() {
   const router = useRouter();
 
@@ -102,6 +185,17 @@ export default function Main() {
 
   const createdJustNow = router.query.created === "1";
 
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  const recentProjects = projects.filter(
+    (p) => p.createdAt && new Date(p.createdAt) >= oneWeekAgo,
+  );
+
+  const olderProjects = projects.filter(
+    (p) => !p.createdAt || new Date(p.createdAt) < oneWeekAgo,
+  );
+
   return (
     <div className="min-h-screen">
       <div className="mx-auto px-20 py-14">
@@ -131,121 +225,66 @@ export default function Main() {
           </div>
         )}
 
+        {projectError && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {projectError}
+          </div>
+        )}
+
+        {/* Recently submitted — only projects created within the last 7 days */}
+        {!loadingProjects && recentProjects.length > 0 && (
+          <div className="mt-12">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-black">
+                Recently submitted
+              </h2>
+              <p className="text-sm text-gray-500">
+                {recentProjects.length} project
+                {recentProjects.length === 1 ? "" : "s"}
+              </p>
+            </div>
+            <ProjectList projects={recentProjects} />
+          </div>
+        )}
+
+        {/* My projects — projects older than 7 days */}
         <div className="mt-12">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-black">
-              Recently submitted
-            </h2>
-
+            <h2 className="text-2xl font-semibold text-black">My projects</h2>
             <p className="text-sm text-gray-500">
               {loadingProjects
                 ? "Loading..."
-                : `${projects.length} project${projects.length === 1 ? "" : "s"}`}
+                : `${olderProjects.length} project${olderProjects.length === 1 ? "" : "s"}`}
             </p>
           </div>
 
-          {projectError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {projectError}
-            </div>
-          )}
+          {!loadingProjects &&
+            olderProjects.length === 0 &&
+            recentProjects.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-8 py-16 text-center">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  No projects yet
+                </h3>
 
-          {!loadingProjects && projects.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-8 py-16 text-center">
-              <h3 className="text-xl font-semibold text-gray-900">
-                No projects yet
-              </h3>
+                <button
+                  onClick={() => router.push("/project/client/project-setup")}
+                  className="mt-6 inline-flex items-center gap-2 rounded-lg bg-sky-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-600 hover:cursor-pointer"
+                >
+                  <FiPlus size={18} />
+                  Create First Project
+                </button>
+              </div>
+            )}
 
-              <button
-                onClick={() => router.push("/project/client/project-setup")}
-                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-sky-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-600 hover:cursor-pointer"
-              >
-                <FiPlus size={18} />
-                Create First Project
-              </button>
-            </div>
-          )}
+          {!loadingProjects &&
+            olderProjects.length === 0 &&
+            recentProjects.length > 0 && (
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-8 py-10 text-center text-sm text-gray-500">
+                Projects older than 7 days will appear here.
+              </div>
+            )}
 
-          {projects.length > 0 && (
-            <div className="space-y-6">
-              {projects.map((project) => {
-                const statusIndex = getStatusIndex(project.status);
-
-                return (
-                  <article
-                    key={project.id}
-                    className="overflow-hidden rounded-xl border border-gray-300 bg-white"
-                  >
-                    <div className="flex">
-                      <div className="relative w-55 bg-gray-100">
-                        {project.thumbnailUrl ? (
-                          <Image
-                            src={project.thumbnailUrl}
-                            alt={project.projectName}
-                            fill
-                            sizes="220px"
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                            No thumbnail
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-1 flex-col p-5">
-                        <div className="flex justify-between">
-                          <div>
-                            <h3 className="text-[22px] font-medium">
-                              {project.projectName}
-                            </h3>
-                            <p className="mt-1 text-sm text-gray-700">
-                              {project.timeInvestment} · {project.budgetRange}
-                            </p>
-                          </div>
-
-                          <button
-                            onClick={() =>
-                              router.push(`/project/client/${project.id}`)
-                            }
-                            className="rounded-md bg-gray-100 px-4 py-2 text-sm hover:bg-gray-200 hover:cursor-pointer"
-                          >
-                            View more
-                          </button>
-                        </div>
-
-                        <p className="mt-3 text-sm text-gray-700">
-                          {project.projectDescription}
-                        </p>
-
-                        <div className="mt-6 grid grid-cols-5 gap-2 border-t pt-4 text-sm">
-                          {STATUS_STEPS.map((step, index) => {
-                            const active = index <= statusIndex;
-                            const current = index === statusIndex;
-
-                            return (
-                              <div
-                                key={step}
-                                className={`text-center ${
-                                  current
-                                    ? "font-semibold text-black"
-                                    : active
-                                      ? "text-gray-800"
-                                      : "text-gray-400"
-                                }`}
-                              >
-                                {step}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+          {olderProjects.length > 0 && <ProjectList projects={olderProjects} />}
         </div>
       </div>
     </div>

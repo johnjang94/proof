@@ -15,6 +15,14 @@ type FormValues = {
   companyLogo: FileList | null;
 };
 
+type SignupPartial = {
+  userId: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
+};
+
 export default function CompanyInfo() {
   const router = useRouter();
 
@@ -30,6 +38,13 @@ export default function CompanyInfo() {
     const t = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(t);
   }, []);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("signup_partial");
+    if (!raw) {
+      router.replace("/sign-up/client");
+    }
+  }, [router]);
 
   useEffect(() => {
     return () => {
@@ -67,16 +82,20 @@ export default function CompanyInfo() {
   const setLogoFromFile = async (file: File) => {
     const dt = new DataTransfer();
     dt.items.add(file);
+
     setValue("companyLogo", dt.files, {
       shouldValidate: true,
       shouldDirty: true,
       shouldTouch: true,
     });
+
     await trigger("companyLogo");
+
     setLogoPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
     });
+
     setLogoName(file.name);
   };
 
@@ -84,16 +103,21 @@ export default function CompanyInfo() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
+
     await setLogoFromFile(file);
   };
 
   const onLogoPick: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     logoRegister.onChange(e);
+
     const file = e.target.files?.[0];
     if (!file) return;
+
     await setLogoFromFile(file);
+    e.target.value = "";
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -103,17 +127,11 @@ export default function CompanyInfo() {
       const raw = sessionStorage.getItem("signup_partial");
       if (!raw) {
         setAuthError("Session expired. Please start sign-up again.");
-        router.push("/sign-up/client");
+        router.replace("/sign-up/client");
         return;
       }
 
-      const partial = JSON.parse(raw) as {
-        userId: string;
-        username: string;
-        firstName: string;
-        lastName: string;
-        avatarUrl: string | null;
-      };
+      const partial = JSON.parse(raw) as SignupPartial;
 
       const logoFile = values.companyLogo?.item?.(0) ?? null;
       const logoUrl = logoFile
@@ -122,6 +140,7 @@ export default function CompanyInfo() {
 
       await apiFetch("/auth/sync", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: partial.userId,
           username: partial.username,
@@ -137,7 +156,7 @@ export default function CompanyInfo() {
       });
 
       sessionStorage.removeItem("signup_partial");
-      router.replace("/main/client/landing");
+      router.replace("/welcome/client/introduction");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Something went wrong";
@@ -159,7 +178,6 @@ export default function CompanyInfo() {
             Tell us about your company so participants can understand who
             they&apos;re working with.
           </p>
-          {/* Step indicator */}
           <div className="mt-4 flex items-center gap-2">
             <div className="h-1.5 w-16 rounded-full bg-gray-200" />
             <div className="h-1.5 w-16 rounded-full bg-black" />
@@ -229,7 +247,7 @@ export default function CompanyInfo() {
             <textarea
               rows={4}
               className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-black"
-              placeholder="e.g. Nexus Logistics is a platform that connects drivers to customers in under 5 minutes."
+              placeholder="i.e. Nexus Logistics is a retail logistics that delivers supplies from a number of manufacturers to individual retail stores"
               {...register("serviceDescription", {
                 required: "Please describe your company's service or product",
                 validate: (v) =>
@@ -244,7 +262,6 @@ export default function CompanyInfo() {
             )}
           </div>
 
-          {/* Company Logo */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-800">
               Company Logo{" "}
@@ -330,7 +347,7 @@ export default function CompanyInfo() {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => router.back()}
+              onClick={() => router.push("/sign-up/client")}
               className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
             >
               ← Back
@@ -338,7 +355,7 @@ export default function CompanyInfo() {
             <button
               type="submit"
               disabled={!isValid || isSubmitting}
-              className="flex-2 rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:cursor-pointer"
+              className="flex-1 rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 hover:cursor-pointer"
             >
               {isSubmitting ? "Creating account..." : "Create account"}
             </button>

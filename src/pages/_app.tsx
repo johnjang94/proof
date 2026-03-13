@@ -55,7 +55,10 @@ export default function App({ Component, pageProps }: AppProps) {
     pathname.startsWith("/main/client") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/project/client") ||
-    pathname.startsWith("/category/profile/client");
+    pathname.startsWith("/category/profile/client") ||
+    pathname.startsWith("/notification/client") ||
+    pathname.startsWith("/notification/client") ||
+    pathname.startsWith("/chat/client");
 
   const variant: "participant" | "client" = isClientRoute
     ? "client"
