@@ -62,13 +62,18 @@ function formatDeadlineDate(deadlineStr?: string | null): string {
   });
 }
 
-export default function ParticipantProjectDetailPage() {
+export default function ParticipantProjectDetail() {
   const router = useRouter();
   const { id } = router.query;
 
   const [project, setProject] = useState<ParticipantProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
+  const [openKey, setOpenKey] = useState<string>("about");
+
+  const toggle = (key: string) => {
+    setOpenKey((prev) => (prev === key ? "" : key));
+  };
 
   useEffect(() => {
     if (!router.isReady || !id || typeof id !== "string") return;
@@ -153,6 +158,36 @@ export default function ParticipantProjectDetailPage() {
     [project?.submissionType],
   );
 
+  const sections = useMemo(
+    () => [
+      {
+        key: "about",
+        title: "About the Project",
+        bg: "bg-[#bcbcbc]",
+        content:
+          project?.projectDescription ||
+          "Project details will appear here once available.",
+      },
+      {
+        key: "company",
+        title: "About the Company",
+        bg: "bg-[#e8e8e8]",
+        content:
+          project?.serviceDescription ||
+          "Company information will appear here once available.",
+      },
+      {
+        key: "outcome",
+        title: "Expected Outcome",
+        bg: "bg-[#e8e8e8]",
+        content:
+          project?.expectedOutcome ||
+          "Expected outcome will appear here once available.",
+      },
+    ],
+    [project],
+  );
+
   if (loading) {
     return (
       <main className="min-h-screen py-5 md:px-6">
@@ -191,6 +226,7 @@ export default function ParticipantProjectDetailPage() {
   return (
     <main className="min-h-screen py-5 text-[#111111]">
       <div className="mx-auto md:px-12 px-5">
+        {/* Breadcrumb */}
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm font-medium text-[#111111]">
           <span>DESIGN</span>
           <FiChevronRight className="text-[15px]" />
@@ -209,6 +245,7 @@ export default function ParticipantProjectDetailPage() {
           </span>
         </div>
 
+        {/* Banner */}
         <div className="relative mb-4 overflow-hidden rounded-[20px] bg-[#d9d9d9]">
           <div className="relative h-65 w-full md:h-107.5">
             <Image
@@ -222,6 +259,7 @@ export default function ParticipantProjectDetailPage() {
           </div>
         </div>
 
+        {/* Title */}
         <div className="mb-5 flex items-center gap-3">
           {isNew && (
             <span className="inline-flex items-center rounded-md bg-[#bfe0ff] px-3 py-1 text-sm font-medium text-[#0f2942]">
@@ -236,17 +274,54 @@ export default function ParticipantProjectDetailPage() {
           )}
         </div>
 
+        {/* Top grid: About the Project + Project Info */}
         <div className="grid gap-5 md:grid-cols-[1.05fr_1fr] md:items-stretch">
-          <section className="rounded-[18px] bg-[#bcbcbc] p-5 md:p-6">
-            <h2 className="mb-4 text-[24px] font-medium leading-none md:text-[26px]">
-              About the Project
-            </h2>
-            <div className="whitespace-pre-line text-[17px] leading-[1.42] text-[#1e1e1e] md:text-[18px]">
-              {project.projectDescription ||
-                "Project details will appear here once available."}
-            </div>
-          </section>
+          {/* Accordion sections */}
+          <div className="space-y-3">
+            {sections.map(({ key, title, bg, content }) => (
+              <section
+                key={key}
+                className={`overflow-hidden rounded-[18px] ${bg}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggle(key)}
+                  className="flex w-full items-center justify-between px-5 py-5 md:px-6 md:py-6"
+                >
+                  <h2 className="text-[24px] font-medium leading-none md:text-[26px]">
+                    {title}
+                  </h2>
+                  <svg
+                    className={`h-5 w-5 shrink-0 text-[#1e1e1e] transition-transform duration-300 ${
+                      openKey === key ? "rotate-180" : ""
+                    }`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
 
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    openKey === key
+                      ? "max-h-250 opacity-100"
+                      : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <div className="whitespace-pre-line px-5 pb-5 text-[17px] leading-[1.42] text-[#1e1e1e] md:px-6 md:pb-6 md:text-[18px]">
+                    {content}
+                  </div>
+                </div>
+              </section>
+            ))}
+          </div>
+
+          {/* Project Info */}
           <section className="flex min-h-80 flex-col justify-between rounded-[18px] bg-transparent px-1 py-1 md:px-4">
             <div className="space-y-7 pt-1">
               <div className="flex items-start justify-between gap-4">
@@ -285,7 +360,7 @@ export default function ParticipantProjectDetailPage() {
                 }
                 className="w-full rounded-xl bg-[#97baf4] px-5 py-3 text-[18px] font-medium text-[#111111] transition hover:brightness-[0.98] active:scale-[0.998] hover:cursor-pointer"
               >
-                View Job Description
+                About the role
               </button>
             </div>
           </section>

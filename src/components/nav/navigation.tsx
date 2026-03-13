@@ -3,8 +3,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RxHamburgerMenu } from "react-icons/rx";
 import { IoCartOutline } from "react-icons/io5";
-import { MdOutlineNotificationsNone } from "react-icons/md";
 import ProfileSlot from "../nav-photos/profile-slot";
+import NotificationBell from "../notification/notification-bell";
 
 export type NavVariant = "participant" | "client";
 
@@ -111,7 +111,7 @@ export default function TopNav({ variant, authUser }: TopNavProps) {
 
       <div className="flex items-center gap-1.5">
         <IoCartOutline className="text-4xl" />
-        <MdOutlineNotificationsNone className="text-4xl" />
+        <NotificationBell />
       </div>
     </div>
   );
