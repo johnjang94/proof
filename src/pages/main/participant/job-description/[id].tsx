@@ -197,7 +197,7 @@ export default function JobDescription({ role }: Props) {
       setShowLoginModal(true);
       return;
     }
-    router.push(`/main/participant/recruitment/${project.id}`);
+    void router.push(`/main/participant/recruitment/${project.id}`);
   };
 
   if (loading) {
