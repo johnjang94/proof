@@ -49,9 +49,11 @@ export default function App({ Component, pageProps }: AppProps) {
   const authRoutes = ["/sign-up", "/welcome"];
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
   const isLoginRoute = pathname === "/login";
-  const hideNav = isLoginRoute || isAuthRoute;
+  const is404Route = pathname === "/404";
+  const hideNav = isLoginRoute || isAuthRoute || is404Route;
 
   const isClientRoute =
+    pathname.startsWith("/404") ||
     pathname.startsWith("/main/client") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/project/client") ||
@@ -80,6 +82,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
   const guestAllowedRoutes = [
     "/",
+    "/404",
     "/login",
     "/sign-up",
     "/welcome",
