@@ -67,6 +67,17 @@ export default function DesktopLogin({
 
   const showRoleErrorLink = router.query.error === "unregistered";
 
+  const redirectToRaw = router.query.redirectTo;
+  const redirectTo =
+    typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
+      ? redirectToRaw
+      : null;
+
+  const signUpHref =
+    role === "participant"
+      ? `/sign-up/participant${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ""}`
+      : `/sign-up/client${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ""}`;
+
   const onSubmit = async (values: { email: string; password: string }) => {
     setAuthError(null);
 
@@ -97,12 +108,6 @@ export default function DesktopLogin({
       await router.replace("/login?error=unregistered");
       return;
     }
-
-    const redirectToRaw = router.query.redirectTo;
-    const redirectTo =
-      typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
-        ? redirectToRaw
-        : null;
 
     if (onLoginSuccess) {
       await onLoginSuccess();
@@ -218,11 +223,7 @@ export default function DesktopLogin({
 
             <div className="mt-20">
               <Link
-                href={
-                  role === "participant"
-                    ? "/sign-up/participant"
-                    : "/sign-up/client"
-                }
+                href={signUpHref}
                 className="block w-full rounded-md py-3 text-center font-medium text-blue-600 transition-colors hover:text-blue-700"
               >
                 {role === "participant"

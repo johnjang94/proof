@@ -213,9 +213,19 @@ export default function Participant() {
         }),
       });
 
+      const redirectToRaw = router.query.redirectTo;
+      const redirectTo =
+        typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
+          ? redirectToRaw
+          : null;
+
+      const welcomePath = `/welcome/participant/introduction${
+        redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ""
+      }`;
+
       setFadingOut(true);
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.replace("/welcome/participant/introduction");
+      router.replace(welcomePath);
     } catch (error) {
       setAuthError(
         error instanceof Error ? error.message : "Something went wrong",

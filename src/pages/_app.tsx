@@ -83,6 +83,7 @@ export default function App({ Component, pageProps }: AppProps) {
     "/login",
     "/sign-up",
     "/welcome",
+    "/welcome/participant",
     "/category/shopping",
     "/category/jobs",
     "/category/chat",
