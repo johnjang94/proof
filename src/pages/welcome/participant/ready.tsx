@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import WelcomeToDo from "@/components/welcome/welcome-todo";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { useRequireSession } from "@/lib/auth/useRequireSession";
 import { supabase } from "@/lib/supabaseInstance";
-import WelcomeToDo from "@/components/welcome/welcome-todo";
 
 export default function Ready() {
   const ok = useRequireSession("/login?role=participant");
+  const router = useRouter();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -17,6 +19,16 @@ export default function Ready() {
 
   if (!ok) return null;
 
+  const redirectToRaw = router.query.redirectTo;
+  const redirectTo =
+    typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
+      ? redirectToRaw
+      : null;
+
+  const nextPath = redirectTo
+    ? `/login?role=participant&from=signup&redirectTo=${encodeURIComponent(redirectTo)}`
+    : "/login?role=participant&from=signup";
+
   return (
     <div
       className={[
@@ -26,7 +38,7 @@ export default function Ready() {
     >
       <h1 className="text-3xl">Now, are you ready to have some fun with us?</h1>
       <WelcomeToDo
-        nextPath="/login?role=participant&from=signup"
+        nextPath={nextPath}
         onBeforeNavigate={async () => {
           await supabase.auth.signOut();
         }}
