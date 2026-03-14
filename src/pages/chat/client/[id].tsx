@@ -90,8 +90,7 @@ export default function ChatPage() {
             return prev;
           });
         }
-      } catch {
-      }
+      } catch {}
     }, 1500);
 
     return () => clearInterval(interval);
@@ -147,7 +146,6 @@ export default function ChatPage() {
         className="w-full flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden"
         style={{ height: "75vh" }}
       >
-        {/* 상단 뒤로가기 */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
           <button
             onClick={() => router.back()}
@@ -171,7 +169,6 @@ export default function ChatPage() {
           <span className="text-sm font-medium text-gray-700">Back</span>
         </div>
 
-        {/* 메시지 목록 */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {messages.length === 0 && (
             <div className="flex items-center justify-center h-full text-sm text-gray-400">
@@ -211,7 +208,6 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* 입력창 */}
         <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100">
           <input
             type="text"
