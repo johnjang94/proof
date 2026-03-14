@@ -181,7 +181,9 @@ export default function Shortlist() {
                       <div className="flex gap-2">
                         <button
                           onClick={() =>
-                            router.push(`/chat/client/${applicant.id}`)
+                            router.push(
+                              `/chat/client/${applicant.id}?projectId=${projectId}`,
+                            )
                           }
                           className="flex items-center gap-2 rounded-lg bg-cyan-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-cyan-300 hover:cursor-pointer transition-colors"
                         >
@@ -241,7 +243,7 @@ export default function Shortlist() {
                     `}</style>
                     <iframe
                       src={resumeSrc}
-                      className="w-full h-[600px]"
+                      className="w-full h-150"
                       title={`${applicant.firstName} ${applicant.lastName} resume`}
                     />
                   </div>
