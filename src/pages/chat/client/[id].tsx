@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
-import { supabase } from "@/lib/supabaseInstance";
+import { io, Socket } from "socket.io-client";
 import { apiFetch } from "@/lib/apiFetch";
+import { supabase } from "@/lib/supabaseInstance";
 
 type Message = {
   id: string;
@@ -22,6 +23,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -78,22 +80,23 @@ export default function ChatPage() {
   useEffect(() => {
     if (!chatRoomId) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const msgRes = await apiFetch(
-          `/chat/messages?chatRoomId=${chatRoomId}`,
-        );
-        const msgs = await msgRes.json();
-        if (Array.isArray(msgs)) {
-          setMessages((prev) => {
-            if (msgs.length !== prev.length) return msgs;
-            return prev;
-          });
-        }
-      } catch {}
-    }, 1500);
+    const socket = io(`${process.env.NEXT_PUBLIC_API_URL}/chat`, {
+      transports: ["websocket"],
+    });
 
-    return () => clearInterval(interval);
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("join_room", chatRoomId);
+    });
+
+    socket.on("new_message", (message: Message) => {
+      setMessages((prev) => [...prev, message]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [chatRoomId]);
 
   useEffect(() => {
