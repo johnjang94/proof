@@ -111,7 +111,7 @@ export default function TopNav({ variant, authUser }: TopNavProps) {
 
       <div className="flex items-center gap-1.5">
         <IoCartOutline className="text-4xl" />
-        <NotificationBell />
+        <NotificationBell userId={authUser?.id ?? null} variant={variant} />
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "@/lib/supabaseInstance";
+import { io, Socket } from "socket.io-client";
 import { apiFetch } from "@/lib/apiFetch";
 
 type Notification = {
@@ -16,13 +16,19 @@ type Notification = {
   projectName?: string | null;
 };
 
-export default function NotificationBell() {
+export default function NotificationBell({
+  userId,
+  variant,
+}: {
+  userId: string | null;
+  variant: "client" | "participant";
+}) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toastNotif, setToastNotif] = useState<Notification | null>(null);
   const [showToast, setShowToast] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevCountRef = useRef<number>(-1);
+  const socketRef = useRef<Socket | null>(null);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -37,51 +43,56 @@ export default function NotificationBell() {
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           )
         : [];
-
-      const newUnread = sorted.filter((n) => !n.isRead).length;
-      const newest = sorted.find((n) => !n.isRead) ?? null;
-
       setNotifications(sorted);
-
-      if (
-        prevCountRef.current !== -1 &&
-        newUnread > prevCountRef.current &&
-        newest
-      ) {
-        setToastNotif(newest);
-        setShowToast(true);
-
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => setShowToast(false), 5000);
-      }
-
-      prevCountRef.current = newUnread;
     } catch (err) {
       console.error("Failed to fetch notifications", err);
     }
   }, []);
 
   useEffect(() => {
-    setTimeout(() => fetchNotifications(), 0);
+    if (!userId) return;
 
-    const channel = supabase
-      .channel("notifications-bell")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications" },
-        () => fetchNotifications(),
-      )
-      .subscribe();
+    const timer = setTimeout(() => fetchNotifications(), 0);
+
+    const socket = io(`${process.env.NEXT_PUBLIC_API_URL}/notifications`, {
+      transports: ["websocket"],
+    });
+
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("join_user", userId);
+    });
+
+    socket.on("new_notification", (notif: Notification) => {
+      setNotifications((prev) =>
+        [notif, ...prev].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ),
+      );
+
+      setToastNotif(notif);
+      setShowToast(true);
+
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => setShowToast(false), 5000);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      clearTimeout(timer);
+      socket.disconnect();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
-  }, [fetchNotifications]);
+  }, [fetchNotifications, userId]);
 
   const handleBellClick = () => {
     setShowToast(false);
-    router.push("/notification/client");
+    router.push(
+      variant === "participant"
+        ? "/notification/participant"
+        : "/notification/client",
+    );
   };
 
   return (
