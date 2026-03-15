@@ -28,14 +28,14 @@ export default function WelcomeToDo({ nextPath, onBeforeNavigate }: Props) {
 
     navTimerRef.current = window.setTimeout(() => {
       router.push(nextPath);
-    }, 450);
+    }, 500);
   };
 
   return (
     <div className="text-center my-10">
       <button
         className={[
-          "w-full py-1 rounded-xl text-white transition",
+          "w-5/6 py-1 rounded-xl text-white transition",
           leaving
             ? "bg-blue-300/60 cursor-not-allowed"
             : "bg-blue-300 hover:bg-blue-700 hover:cursor-pointer",

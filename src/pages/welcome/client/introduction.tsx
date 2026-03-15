@@ -61,16 +61,15 @@ export default function Introduction() {
 
       const { data } = await supabase
         .from("profiles")
-        .select("first_name,last_name")
+        .select("first_name")
         .eq("id", user.id)
         .single();
 
       if (!alive) return;
 
-      const name = [data?.first_name, data?.last_name]
-        .filter(Boolean)
-        .join(" ");
-      setFullName(name || null);
+      setFullName(data?.first_name || null);
+
+      await new Promise((r) => requestAnimationFrame(r));
 
       startTimeline();
     };

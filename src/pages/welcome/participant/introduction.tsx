@@ -47,7 +47,7 @@ export default function Introduction() {
         window.setTimeout(() => {
           if (!alive) return;
           router.replace("/welcome/participant/to-do");
-        }, 8500),
+        }, 6500),
       );
     };
 
@@ -93,7 +93,7 @@ export default function Introduction() {
     <div
       className={[
         "relative flex min-h-[70vh] flex-col items-center justify-center text-center",
-        "transition-opacity duration-1000 ease-in-out",
+        "transition-opacity duration-500 ease-in-out",
         fadeOut ? "opacity-0" : fadeIn ? "opacity-100" : "opacity-0",
       ].join(" ")}
     >

@@ -71,12 +71,12 @@ export default function ZoomCall() {
 
   const handleBeforeNavigate = async () => {
     setFadingOut(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   };
 
   return (
     <div
-      style={{ transition: "opacity 2s ease-in-out" }}
+      style={{ transition: "opacity 0.5s ease-in-out" }}
       className={[
         "mx-auto max-w-4xl px-4 pb-20 my-5",
         fadeIn && !fadingOut ? "opacity-100" : "opacity-0",
