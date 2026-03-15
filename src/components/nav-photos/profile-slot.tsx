@@ -2,22 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CgProfile } from "react-icons/cg";
-import { supabase } from "@/lib/supabaseInstance";
+import { apiFetch } from "@/lib/apiFetch";
 
 type AuthUser = {
   id: string;
   email?: string;
 } | null;
-
-type ProfileRow = {
-  first_name: string | null;
-  last_name: string | null;
-  company_name: string | null;
-  role: string | null;
-  points: number | null;
-  avatar_url: string | null;
-  avatar_path?: string | null;
-};
 
 type DisplayProfile = {
   name: string;
@@ -49,37 +39,28 @@ export default function ProfileSlot({ authUser }: { authUser: AuthUser }) {
     let mounted = true;
 
     const loadProfile = async () => {
-      if (!authUser) {
-        setProfile(null);
-        return;
-      }
+      if (!authUser) return;
 
-      const { data: p, error } = await supabase
-        .from("profiles")
-        .select(
-          "first_name, last_name, company_name, role, points, avatar_url, avatar_path",
-        )
-        .eq("id", authUser.id)
-        .maybeSingle<ProfileRow>();
-
+      const res = await apiFetch("/auth/me");
       if (!mounted) return;
 
-      if (error || !p) {
+      const p = res.ok ? await res.json() : null;
+      if (!p) {
         setProfile(null);
         return;
       }
 
-      const first = (p.first_name ?? "").trim();
-      const last = (p.last_name ?? "").trim();
+      const first = (p.firstName ?? "").trim();
+      const last = (p.lastName ?? "").trim();
       const fullName = [first, last].filter(Boolean).join(" ").trim();
 
       setProfile({
         name: fullName || "User",
-        companyName: (p.company_name ?? "").trim() || null,
+        companyName: (p.company?.name ?? "").trim() || null,
         role: p.role ?? null,
         avatarUrl:
-          normalizeAvatarUrl(p.avatar_url) ??
-          normalizeAvatarUrl(p.avatar_path) ??
+          normalizeAvatarUrl(p.avatarUrl) ??
+          normalizeAvatarUrl(p.avatarPath) ??
           null,
         points: p.points ?? 0,
       });

@@ -19,19 +19,6 @@ type FormValues = {
   avatar: FileList | null;
 };
 
-type ProfileBase = {
-  username: string;
-  first_name: string;
-  last_name: string;
-  role: "participant";
-  avatar_url: string | null;
-};
-
-const PROFILE_ID_COL: "id" | "user_id" = "id";
-
-type ProfileById = { id: string } & ProfileBase;
-type ProfileByUserId = { user_id: string } & ProfileBase;
-
 export default function Participant() {
   const router = useRouter();
 
@@ -120,29 +107,12 @@ export default function Participant() {
   };
 
   const checkUsernameTaken = async (username: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("username", username)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return !!data;
-  };
-
-  const upsertProfile = async (userId: string, base: ProfileBase) => {
-    if (PROFILE_ID_COL === "id") {
-      const payload: ProfileById = { id: userId, ...base };
-      const { error } = await supabase
-        .from("profiles")
-        .upsert(payload, { onConflict: "id" });
-      if (error) throw new Error(error.message);
-      return;
-    }
-    const payload: ProfileByUserId = { user_id: userId, ...base };
-    const { error } = await supabase
-      .from("profiles")
-      .upsert(payload, { onConflict: "user_id" });
-    if (error) throw new Error(error.message);
+    const res = await apiFetch(
+      `/auth/check-username?username=${encodeURIComponent(username)}`,
+    );
+    if (!res.ok) throw new Error("Failed to check username");
+    const data = await res.json();
+    return data.taken as boolean;
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -194,14 +164,6 @@ export default function Participant() {
       const file = values.avatar?.item?.(0) ?? null;
       const avatarUrl = file ? await uploadAsset(file, "profile-avatar") : null;
 
-      await upsertProfile(user.id, {
-        username,
-        first_name: firstName,
-        last_name: lastName,
-        role: "participant",
-        avatar_url: avatarUrl,
-      });
-
       await apiFetch("/auth/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -210,6 +172,7 @@ export default function Participant() {
           firstName,
           lastName,
           avatarUrl: avatarUrl ?? null,
+          role: "participant",
         }),
       });
 

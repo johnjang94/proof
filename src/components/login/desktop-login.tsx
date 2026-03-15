@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { useState } from "react";
 import type { Role } from "@/pages/login";
 import { supabase } from "@/lib/supabaseInstance";
+import { apiFetch } from "@/lib/apiFetch";
 import useLoginForm from "@/hooks/useLoginForm";
 
 async function waitForSupabaseSession(timeoutMs = 3000) {
@@ -81,7 +82,7 @@ export default function DesktopLogin({
   const onSubmit = async (values: { email: string; password: string }) => {
     setAuthError(null);
 
-    const { error, data } = await supabase.auth.signInWithPassword(values);
+    const { error } = await supabase.auth.signInWithPassword(values);
 
     if (error) {
       setAuthError(error.message);
@@ -97,13 +98,10 @@ export default function DesktopLogin({
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .maybeSingle();
+    const res = await apiFetch("/auth/me");
+    const user = res.ok ? await res.json() : null;
 
-    if (!profile || profile.role !== role) {
+    if (!user || user.role !== role) {
       await supabase.auth.signOut();
       await router.replace("/login?error=unregistered");
       return;

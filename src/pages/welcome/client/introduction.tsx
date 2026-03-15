@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase } from "@/lib/supabaseInstance";
+import { apiFetch } from "@/lib/apiFetch";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useRequireSession } from "@/lib/auth/useRequireSession";
@@ -52,22 +52,12 @@ export default function Introduction() {
     };
 
     const load = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const user = session?.user;
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("first_name")
-        .eq("id", user.id)
-        .single();
-
+      const res = await apiFetch("/auth/me");
       if (!alive) return;
 
-      setFullName(data?.first_name || null);
+      const user = res.ok ? await res.json() : null;
+
+      setFullName(user?.firstName || null);
 
       await new Promise((r) => requestAnimationFrame(r));
 

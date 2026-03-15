@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 
 type AuthUser = {
   id: string;
   email?: string;
 } | null;
-
-type ProfileRow = {
-  id: string;
-  avatar_path: string | null;
-  avatar_url: string | null;
-};
 
 function normalizeAvatarUrl(raw: string) {
   const v = raw.trim();
@@ -34,27 +29,18 @@ export function useProfileBadge(user: AuthUser) {
   );
 
   useEffect(() => {
-    if (!user) {
-      setAvatarUrl("");
-      return;
-    }
+    if (!user) return;
 
     let alive = true;
 
     const run = async () => {
-      const { supabase } = await import("@/lib/supabaseInstance");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, avatar_path, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle<ProfileRow>();
-
+      const res = await apiFetch("/auth/me");
       if (!alive) return;
 
+      const profile = res.ok ? await res.json() : null;
+
       const raw =
-        (profile?.avatar_url ?? "").trim() ||
-        (profile?.avatar_path ?? "").trim();
+        (profile?.avatarUrl ?? "").trim() || (profile?.avatarPath ?? "").trim();
 
       setAvatarUrl(raw ? normalizeAvatarUrl(raw) : "");
     };

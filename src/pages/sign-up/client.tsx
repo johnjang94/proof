@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabaseInstance";
+import { apiFetch } from "@/lib/apiFetch";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
@@ -17,19 +18,6 @@ type FormValues = {
   lastName: string;
   avatar: File | null;
 };
-
-type ProfileBase = {
-  username: string;
-  first_name: string;
-  last_name: string;
-  role: "client";
-  avatar_url: string | null;
-};
-
-const PROFILE_ID_COL: "id" | "user_id" = "id";
-
-type ProfileById = { id: string } & ProfileBase;
-type ProfileByUserId = { user_id: string } & ProfileBase;
 
 export default function Client() {
   const router = useRouter();
@@ -118,33 +106,12 @@ export default function Client() {
   };
 
   const checkUsernameTaken = async (username: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("username", username)
-      .maybeSingle();
-
-    if (error) throw new Error(error.message);
-    return !!data;
-  };
-
-  const upsertProfile = async (userId: string, base: ProfileBase) => {
-    if (PROFILE_ID_COL === "id") {
-      const payload: ProfileById = { id: userId, ...base };
-      const { error } = await supabase
-        .from("profiles")
-        .upsert(payload, { onConflict: "id" });
-
-      if (error) throw new Error(error.message);
-      return;
-    }
-
-    const payload: ProfileByUserId = { user_id: userId, ...base };
-    const { error } = await supabase
-      .from("profiles")
-      .upsert(payload, { onConflict: "user_id" });
-
-    if (error) throw new Error(error.message);
+    const res = await apiFetch(
+      `/auth/check-username?username=${encodeURIComponent(username)}`,
+    );
+    if (!res.ok) throw new Error("Failed to check username");
+    const data = await res.json();
+    return data.taken as boolean;
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -197,14 +164,6 @@ export default function Client() {
         ? await uploadAsset(values.avatar, "profile-avatar")
         : null;
 
-      await upsertProfile(user.id, {
-        username,
-        first_name: firstName,
-        last_name: lastName,
-        role: "client",
-        avatar_url: avatarUrl,
-      });
-
       sessionStorage.setItem(
         "signup_partial",
         JSON.stringify({
@@ -213,6 +172,7 @@ export default function Client() {
           firstName,
           lastName,
           avatarUrl,
+          role: "client",
         }),
       );
 

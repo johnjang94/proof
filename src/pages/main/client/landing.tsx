@@ -1,6 +1,5 @@
 "use client";
 
-import { supabase } from "@/lib/supabaseInstance";
 import { apiFetch } from "@/lib/apiFetch";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
@@ -136,23 +135,16 @@ export default function Main() {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const meRes = await apiFetch("/auth/me");
+        const me = meRes.ok ? await meRes.json() : null;
 
-        if (!user) {
+        if (!me) {
           setLoadingProjects(false);
           return;
         }
 
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("first_name")
-          .eq("id", user.id)
-          .single();
-
-        if (profileData?.first_name) {
-          setFirstName(profileData.first_name);
+        if (me.firstName) {
+          setFirstName(me.firstName);
         }
 
         const res = await apiFetch("/project-intakes", {
@@ -231,7 +223,6 @@ export default function Main() {
           </div>
         )}
 
-        {/* Recently submitted — only projects created within the last 7 days */}
         {!loadingProjects && recentProjects.length > 0 && (
           <div className="mt-12">
             <div className="mb-5 flex items-center justify-between">
@@ -247,7 +238,6 @@ export default function Main() {
           </div>
         )}
 
-        {/* My projects — projects older than 7 days */}
         <div className="mt-12">
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-black">My projects</h2>
