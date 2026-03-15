@@ -80,7 +80,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!chatRoomId) return;
 
-    const socket = io(`${process.env.NEXT_PUBLIC_API_URL}/chat`, {
+    const socket = io(`${process.env.NEXT_PUBLIC_API_BASE}/chat`, {
       transports: ["websocket"],
     });
 

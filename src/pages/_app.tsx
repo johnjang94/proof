@@ -100,6 +100,12 @@ export default function App({ Component, pageProps }: AppProps) {
   );
 
   useEffect(() => {
+    console.log("role:", role);
+    console.log("pathname:", pathname);
+    console.log("isClientRoute:", isClientRoute);
+  }, [role, pathname, isClientRoute]);
+
+  useEffect(() => {
     let alive = true;
 
     const syncFromSession = async () => {

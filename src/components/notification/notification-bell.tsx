@@ -54,7 +54,7 @@ export default function NotificationBell({
 
     const timer = setTimeout(() => fetchNotifications(), 0);
 
-    const socket = io(`${process.env.NEXT_PUBLIC_API_URL}/notifications`, {
+    const socket = io(`${process.env.NEXT_PUBLIC_API_BASE}/notifications`, {
       transports: ["websocket"],
     });
 

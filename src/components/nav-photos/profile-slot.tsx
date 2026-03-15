@@ -94,9 +94,10 @@ export default function ProfileSlot({ authUser }: { authUser: AuthUser }) {
 
   const href = useMemo(() => {
     if (!authUser) return "/login";
-    if (profile?.role === "client") return "/category/profile/client";
+    if (!profile) return "#";
+    if (profile.role === "client") return "/category/profile/client";
     return "/category/profile/participant";
-  }, [authUser, profile?.role]);
+  }, [authUser, profile]);
 
   const label = useMemo(() => (authUser ? "Profile" : "Login"), [authUser]);
 
