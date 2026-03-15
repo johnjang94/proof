@@ -28,7 +28,7 @@ export default function WelcomeToDo({ nextPath, onBeforeNavigate }: Props) {
 
     navTimerRef.current = window.setTimeout(() => {
       router.push(nextPath);
-    }, 450);
+    }, 500);
   };
 
   return (
