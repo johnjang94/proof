@@ -1,25 +1,18 @@
 "use client";
 
 import { useRouter } from "next/router";
-import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { FiChevronRight, FiUpload } from "react-icons/fi";
-import { MdLocalFireDepartment } from "react-icons/md";
+import { useMemo, useRef, useState } from "react";
+import { FiUpload } from "react-icons/fi";
 import { apiFetch } from "@/lib/apiFetch";
-
-type ProjectDetail = {
-  id: string;
-  projectName: string;
-  thumbnailUrl?: string | null;
-  createdAt?: string;
-  viewCount?: number;
-  companyName?: string | null;
-  companyLogoUrl?: string | null;
-  position?: string | null;
-};
-
-const FALLBACK_BANNER =
-  "https://images.unsplash.com/photo-1519003722824-194d4455a60c?q=80&w=1600&auto=format&fit=crop";
+import { useProjectDetail } from "@/hooks/useProjectDetail";
+import { isPopularProject, isNewProject } from "@/lib/projectUtils";
+import {
+  ProjectBanner,
+  ProjectBreadcrumb,
+  ProjectErrorState,
+  ProjectLoadingSkeleton,
+  ProjectTitle,
+} from "@/components/project/prject-shared";
 
 const BOTTOM_STEPS = [
   {
@@ -35,17 +28,6 @@ const BOTTOM_STEPS = [
   },
 ];
 
-function isPopularProject(viewCount?: number) {
-  return (viewCount ?? 0) >= 10;
-}
-
-function isNewProject(createdAt?: string) {
-  if (!createdAt) return false;
-  const created = new Date(createdAt).getTime();
-  if (Number.isNaN(created)) return false;
-  return Date.now() - created <= 7 * 24 * 60 * 60 * 1000;
-}
-
 function getMimeType(file: File): string {
   if (file.type) return file.type;
   const ext = file.name.split(".").pop()?.toLowerCase();
@@ -56,14 +38,34 @@ function getMimeType(file: File): string {
   return file.type;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${label} timed out. Please try again.`)),
+        ms,
+      ),
+    ),
+  ]);
+}
+
 export default function FirstStep() {
   const router = useRouter();
   const { id } = router.query;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [pageError, setPageError] = useState("");
+  const { project, loading, pageError } = useProjectDetail(id, router.isReady);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -74,59 +76,10 @@ export default function FirstStep() {
   const [isDragging, setIsDragging] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitStep, setSubmitStep] = useState<
+    "idle" | "uploading" | "submitting"
+  >("idle");
 
-  useEffect(() => {
-    if (!router.isReady || !id || typeof id !== "string") return;
-
-    let mounted = true;
-
-    const loadProject = async () => {
-      try {
-        setLoading(true);
-        setPageError("");
-
-        const res = await apiFetch(`/projects/public/${id}`, { method: "GET" });
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`Failed to load project (${res.status}). ${text}`);
-        }
-
-        const data = await res.json();
-        const item = data?.item ?? data?.project ?? data ?? null;
-
-        if (!mounted) return;
-
-        setProject({
-          id: item?.id ?? id,
-          projectName: item?.projectName ?? "Untitled Project",
-          thumbnailUrl: item?.thumbnailUrl ?? null,
-          createdAt: item?.createdAt,
-          viewCount: item?.viewCount ?? 0,
-          companyName: item?.clientUser?.company?.name ?? null,
-          companyLogoUrl: item?.clientUser?.company?.logoUrl ?? null,
-          position: item?.position ?? null,
-        });
-      } catch (error) {
-        if (!mounted) return;
-        setPageError(
-          error instanceof Error ? error.message : "Failed to load project.",
-        );
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadProject();
-    return () => {
-      mounted = false;
-    };
-  }, [router.isReady, id]);
-
-  const bannerUrl = useMemo(
-    () => project?.thumbnailUrl || FALLBACK_BANNER,
-    [project?.thumbnailUrl],
-  );
   const popular = useMemo(
     () => isPopularProject(project?.viewCount),
     [project?.viewCount],
@@ -174,47 +127,60 @@ export default function FirstStep() {
 
     try {
       setSubmitting(true);
+      setSubmitStep("uploading");
 
       const mimeType = getMimeType(resumeFile);
 
-      const presignRes = await apiFetch("/uploads/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "resume",
-          filename: resumeFile.name,
-          contentType: mimeType,
+      const presignRes = await withTimeout(
+        apiFetch("/uploads/presign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "resume",
+            filename: resumeFile.name,
+            contentType: mimeType,
+          }),
         }),
-      });
+        15_000,
+        "Getting upload URL",
+      );
 
-      if (!presignRes.ok) {
-        throw new Error("Failed to get upload URL.");
-      }
+      if (!presignRes.ok) throw new Error("Failed to get upload URL.");
 
       const { uploadUrl, key } = await presignRes.json();
 
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": mimeType },
-        body: resumeFile,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error("Failed to upload resume.");
-      }
-
-      const applyRes = await apiFetch("/project-applications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: id,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim(),
-          resumeR2Key: key,
-          ...(portfolioLink.trim() && { portfolioLink: portfolioLink.trim() }),
+      const uploadRes = await withTimeout(
+        fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": mimeType },
+          body: resumeFile,
         }),
-      });
+        30_000,
+        "Uploading resume",
+      );
+
+      if (!uploadRes.ok) throw new Error("Failed to upload resume.");
+
+      setSubmitStep("submitting");
+
+      const applyRes = await withTimeout(
+        apiFetch("/project-applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: id,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            resumeR2Key: key,
+            ...(portfolioLink.trim() && {
+              portfolioLink: portfolioLink.trim(),
+            }),
+          }),
+        }),
+        15_000,
+        "Submitting application",
+      );
 
       const applyData = await applyRes.json().catch(() => ({}));
 
@@ -223,7 +189,6 @@ export default function FirstStep() {
       }
 
       const position = applyData?.position ?? "";
-
       router.push(
         `/project/participant/application/success/${id}?position=${encodeURIComponent(position)}`,
       );
@@ -233,88 +198,41 @@ export default function FirstStep() {
       );
     } finally {
       setSubmitting(false);
+      setSubmitStep("idle");
     }
   };
 
-  if (loading) {
-    return (
-      <main className="min-h-screen py-5 md:px-6">
-        <div className="mx-auto w-full max-w-6xl animate-pulse">
-          <div className="mb-4 h-6 w-56 rounded bg-gray-200" />
-          <div className="mb-4 h-70 w-full rounded-2xl bg-gray-200 md:h-105" />
-          <div className="mb-4 h-10 w-3/4 rounded bg-gray-200" />
-          <div className="h-80 rounded-2xl bg-gray-200" />
-        </div>
-      </main>
-    );
-  }
+  const submitLabel =
+    submitStep === "uploading"
+      ? "Uploading resume..."
+      : submitStep === "submitting"
+        ? "Submitting application..."
+        : "Submit Application ➤";
 
-  if (pageError || !project) {
+  if (loading) return <ProjectLoadingSkeleton />;
+  if (pageError || !project)
     return (
-      <main className="min-h-screen py-8 md:px-6">
-        <div className="mx-auto max-w-4xl rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
-          <p className="text-base font-medium text-red-600">
-            {pageError || "Project not found."}
-          </p>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="mt-4 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            Go back
-          </button>
-        </div>
-      </main>
+      <ProjectErrorState message={pageError} onBack={() => router.back()} />
     );
-  }
 
   return (
     <main className="min-h-screen py-5 text-[#111111]">
       <div className="mx-auto md:px-12 px-5">
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm font-medium text-[#111111]">
-          <span>DESIGN</span>
-          <FiChevronRight className="text-[15px]" />
-          <span className="inline-flex items-center gap-2 text-[#2a2a2a]">
-            {project.companyLogoUrl && (
-              <Image
-                src={project.companyLogoUrl}
-                alt={project.companyName ?? "Company logo"}
-                width={20}
-                height={20}
-                className="rounded-sm object-cover"
-                unoptimized
-              />
-            )}
-            <span className="truncate">{project.companyName ?? "General"}</span>
-          </span>
-        </div>
+        <ProjectBreadcrumb
+          companyName={project.companyName}
+          companyLogoUrl={project.companyLogoUrl}
+        />
 
-        <div className="relative mb-4 overflow-hidden rounded-[20px] bg-[#d9d9d9]">
-          <div className="relative h-65 w-full md:h-107.5">
-            <Image
-              src={bannerUrl}
-              alt={project.projectName}
-              fill
-              className="object-cover"
-              priority
-              unoptimized
-            />
-          </div>
-        </div>
+        <ProjectBanner
+          thumbnailUrl={project.thumbnailUrl}
+          projectName={project.projectName}
+        />
 
-        <div className="mb-5 flex items-center gap-3">
-          {isNew && (
-            <span className="inline-flex items-center rounded-md bg-[#bfe0ff] px-3 py-1 text-sm font-medium text-[#0f2942]">
-              New
-            </span>
-          )}
-          <h1 className="text-2xl font-medium leading-tight tracking-[-0.02em] md:text-4xl">
-            {project.projectName}
-          </h1>
-          {popular && (
-            <MdLocalFireDepartment className="text-[28px] text-red-500 md:text-[34px]" />
-          )}
-        </div>
+        <ProjectTitle
+          projectName={project.projectName}
+          isNew={isNew}
+          isPopular={popular}
+        />
 
         <div className="mb-5 rounded-2xl bg-[#f0f0f0] px-5 py-4 text-center">
           <p className="text-[17px] font-semibold text-[#111111]">
@@ -386,19 +304,22 @@ export default function FirstStep() {
             />
           </div>
 
+          {/* Resume Upload */}
           <div className="mb-4">
             <label className="mb-1 block text-[13px] text-[#111111]">
               Resume / CV
             </label>
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !resumeFile && fileInputRef.current?.click()}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`flex min-h-45 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed px-4 py-6 text-center transition ${
-                isDragging
-                  ? "border-gray-400 bg-gray-100"
-                  : "border-gray-300 bg-white"
+              className={`flex min-h-45 flex-col items-center justify-center rounded-md border-2 border-dashed px-4 py-6 text-center transition ${
+                resumeFile
+                  ? "border-green-400 bg-green-50 cursor-default"
+                  : isDragging
+                    ? "border-gray-400 bg-gray-100 cursor-copy"
+                    : "border-gray-300 bg-white cursor-pointer"
               }`}
             >
               <input
@@ -409,9 +330,40 @@ export default function FirstStep() {
                 className="hidden"
               />
               {resumeFile ? (
-                <p className="text-[14px] font-medium text-[#111111]">
-                  {resumeFile.name}
-                </p>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                    <svg
+                      className="h-5 w-5 text-green-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-[14px] font-semibold text-green-700">
+                    {resumeFile.name}
+                  </p>
+                  <p className="text-[12px] text-green-600">
+                    {formatFileSize(resumeFile.size)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setResumeFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="mt-1 text-[12px] text-[#888] underline hover:text-[#444]"
+                  >
+                    Remove and re-upload
+                  </button>
+                </div>
               ) : (
                 <>
                   <FiUpload className="mb-2 text-[28px] text-[#111111]" />
@@ -471,11 +423,36 @@ export default function FirstStep() {
             disabled={submitting}
             className="w-full rounded-xl bg-[#222] px-5 py-3 text-center text-[15px] font-semibold text-white transition hover:brightness-110 disabled:opacity-60 hover:cursor-pointer"
           >
-            {submitting ? "Submitting..." : "Submit Application ➤"}
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg
+                  className="h-4 w-4 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  />
+                </svg>
+                {submitLabel}
+              </span>
+            ) : (
+              submitLabel
+            )}
           </button>
         </div>
 
-        <div className="space-y-3 mb-10">
+        <div className="mb-10 space-y-3">
           {BOTTOM_STEPS.map((s) => (
             <div key={s.step} className="rounded-2xl bg-[#f0f0f0] px-5 py-4">
               <div className="flex items-start gap-3">

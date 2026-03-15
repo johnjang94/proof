@@ -7,8 +7,12 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
     throw new Error("NEXT_PUBLIC_API_BASE is not set");
   }
 
-  const { data } = await supabase.auth.getSession();
-  const token = data?.session?.access_token ?? null;
+  const token = await Promise.race([
+    supabase.auth
+      .getSession()
+      .then(({ data }) => data?.session?.access_token ?? null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 5_000)),
+  ]);
 
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
